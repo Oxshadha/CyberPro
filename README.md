@@ -1,52 +1,59 @@
-# CyberPro: Advanced SOC Triage Expert System
+# CyberPro SOC Diagnostic System
 
-CyberPro is a Prolog-based expert system designed to act as a Security Operations Center (SOC) Alert Triage assistant. It takes a list of raw security events (like port scans, malware signatures, or unauthorized accesses), filters out false positives, analyzes them using an inference engine, scores the network risk, and provides actionable mitigations.
+CyberPro is an advanced **Expert System** built for Security Operations Center (SOC) triage. It bridges traditional logic programming with modern web technologies, using a **Prolog Inference Engine** on the backend and a sleek, industrial-grade **Node.js Web Dashboard** on the frontend.
 
-## Features & Prolog Concepts Used
+## 🚀 Key Features
 
-- **Data Objects & Structures**: Represents network events and threats.
-- **Lists & Membership**: Validates events and manages dynamic event lists.
-- **List Concatenation & Deletion**: Cleans raw data (filtering out known false positives like harmless port scans).
-- **List Length & Arithmetic**: Counts actionable alerts and calculates a mathematical Risk Score.
-- **Dynamic DB (`assertz`, `retract`)**: Maintains the active session's event log.
-- **Inference Engine (`\+` Negation as Failure, `!` Cut)**: Deduzes complex attacks (e.g., concluding SQL Injection was successful *only if* it was not blocked by a WAF).
-- **Aggregation (`bagof`, `setof`)**: Collects all unique vulnerabilities across the network.
-- **Meta-Programming (`=..`, `functor`, `arg`, `call`)**: Dynamically unpacks structured alert formats and runs dynamic predicate checks.
-- **Interactive I/O**: A recursive command-line interface that loops to accept commands and events from the SOC analyst.
+* **Backward Chaining Inference Engine:** Built purely in SWI-Prolog, the system deduces 9 critical cyber threat scenarios by logically validating symptoms against a known rulebase.
+* **Dynamic Fact Database:** Uses Prolog's `assertz` meta-predicate to dynamically build state in memory as the user interacts with the system, minimizing redundant questions.
+* **Industrial Glassmorphism UI:** A premium, dark-mode "Graphite/Charcoal" dashboard built with HTML, CSS Flexbox/Grid, and Lucide SVG icons.
+* **Transparent Execution:** Features a live terminal emulator that streams the raw `swipl` CLI commands and responses directly to the user to prove logical execution.
+* **Mermaid.js Visual Tracing:** Every diagnosis automatically generates a flowchart showing the exact Facts → Rules → Conclusion logic path that Prolog took.
 
-## Setup and Running
+## 🧠 The 9 Threat Knowledge Base
 
-1. **Install SWI-Prolog** (if not already installed):
-   - macOS: `brew install swi-prolog`
-   - Windows: Download from the [SWI-Prolog website](https://www.swi-prolog.org)
+CyberPro can successfully diagnose and provide mitigation strategies for:
+1. Distributed Denial of Service (DDoS)
+2. SQL Injection
+3. Ransomware
+4. Insider Threat
+5. Reconnaissance (Port Scanning)
+6. Phishing Campaigns
+7. Cryptojacking Infection
+8. Cloud Data Exfiltration
+9. Website Defacement
 
-2. **Load the Knowledge Base**:
-   Open a terminal, navigate to this folder, and start SWI-Prolog:
-   ```bash
-   swipl -s cyber_pro.pl
-   ```
+## 🛠 Setup and Installation
 
-3. **Run the Diagnostic System**:
-   In the Prolog console, start the triage process (do not type the `?-` prompt):
-   ```prolog
-   ?- diagnose.
-   ```
+### Prerequisites
+You must have **SWI-Prolog** and **Node.js** installed on your machine.
+- macOS: `brew install swi-prolog node`
+- Ubuntu: `sudo apt install swi-prolog nodejs npm`
+- Windows: Download binaries from their official websites.
 
-## Using the Interactive Chat Frontend
+*(Ensure the `swipl` command is available in your system PATH).*
 
-In addition to the terminal, CyberPro includes a custom ChatGPT-like Web Interface!
+### Running the Project
 
-1. **Start the Chat Server:**
-   Open a new terminal window, navigate to the `chat-ui` folder, and start the Node.js server:
+1. **Install Dependencies:**
+   Navigate into the UI directory and install the required Node.js packages:
    ```bash
    cd chat-ui
    npm install
+   ```
+
+2. **Start the Application:**
+   Run the Node.js Express server:
+   ```bash
    npm start
    ```
 
-2. **Open the Interface:**
-   Open your web browser and navigate to:
-   [http://localhost:3000](http://localhost:3000)
+3. **Open the Dashboard:**
+   Open your browser and navigate to: [http://localhost:3000](http://localhost:3000)
 
-3. **Start Chatting:**
-   Type a natural sentence like *"I am seeing port scans and unauthorized access."* The Node.js wrapper will parse your message, securely query the Prolog engine in the background, and provide a formatted diagnosis report.
+## 📁 Repository Structure
+
+* `cyber_pro.pl` - The core Prolog Expert System containing rules, facts, risk scores, and mitigations.
+* `chat-ui/server.js` - The Node.js API that bridges the web frontend via `child_process` to the `swipl` binary.
+* `chat-ui/public/` - The frontend assets (HTML, CSS, JS).
+* `Explore_Cyber_pro.md` - A comprehensive Viva & Demo guide explaining the architecture, Prolog predicates, and expected Q&A.
