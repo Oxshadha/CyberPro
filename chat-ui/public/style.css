@@ -1,9 +1,9 @@
 :root {
-    --bg-color: #0f172a;
-    --panel-bg: #1e293b;
-    --border-color: #334155;
+    --bg-color: #121212;
+    --panel-bg: #1e1e1e;
+    --border-color: #333333;
     --text-primary: #f8fafc;
-    --text-secondary: #94a3b8;
+    --text-secondary: #a0a0a0;
     --accent-color: #3b82f6;
     --accent-hover: #2563eb;
     --success-color: #10b981;
@@ -18,7 +18,7 @@
 
 body {
     font-family: 'Inter', sans-serif;
-    background: radial-gradient(circle at center top, #1e293b 0%, #0f172a 100%);
+    background: radial-gradient(circle at center top, #1e1e1e 0%, #121212 100%);
     color: var(--text-primary);
     display: flex;
     flex-direction: column;
@@ -121,7 +121,7 @@ h2 {
 }
 
 .symptom-card {
-    background: rgba(30, 41, 59, 0.6);
+    background: rgba(40, 40, 40, 0.6);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.05);
@@ -135,7 +135,7 @@ h2 {
 }
 .symptom-card:hover {
     border-color: rgba(59, 130, 246, 0.5);
-    background: rgba(30, 41, 59, 0.8);
+    background: rgba(40, 40, 40, 0.8);
     transform: translateY(-4px);
     box-shadow: 0 10px 20px -5px rgba(59, 130, 246, 0.2), 0 0 15px rgba(59, 130, 246, 0.15);
 }
@@ -159,7 +159,7 @@ h2 {
 
 /* ASK CARD */
 .ask-card {
-    background: rgba(30, 41, 59, 0.6);
+    background: rgba(40, 40, 40, 0.6);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.05);
@@ -195,7 +195,7 @@ h2 {
 
 /* RESULT SCREEN */
 .result-content {
-    background: rgba(30, 41, 59, 0.6);
+    background: rgba(40, 40, 40, 0.6);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.05);
@@ -254,4 +254,13 @@ h2 {
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+.spin {
+    animation: spin 1s linear infinite;
+    display: inline-block;
 }

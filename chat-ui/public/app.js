@@ -31,6 +31,32 @@ document.addEventListener('DOMContentLoaded', () => {
         terminalLog.scrollTop = terminalLog.scrollHeight;
     }
 
+    function typeWriterTerminal(command, output, speed = 15) {
+        const cmdSpan = document.createElement('span');
+        cmdSpan.className = 'command';
+        cmdSpan.textContent = `> ${command}\n`;
+        
+        const outSpan = document.createElement('span');
+        outSpan.className = 'output';
+        
+        terminalLog.appendChild(cmdSpan);
+        terminalLog.appendChild(outSpan);
+        
+        let i = 0;
+        function type() {
+            if (i < output.length) {
+                outSpan.textContent += output.charAt(i);
+                i++;
+                terminalLog.scrollTop = terminalLog.scrollHeight;
+                setTimeout(type, speed);
+            } else {
+                outSpan.textContent += '\n\n';
+                terminalLog.scrollTop = terminalLog.scrollHeight;
+            }
+        }
+        type();
+    }
+
     function showScreen(screen) {
         screenInitial.classList.add('hidden');
         screenAsk.classList.add('hidden');
@@ -41,6 +67,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function sendAction(actionType, value = '') {
         try {
+            if (actionType !== 'reset') {
+                document.getElementById('btn-yes').style.display = 'none';
+                document.getElementById('btn-no').style.display = 'none';
+                askPrompt.innerHTML = `<i data-lucide="loader-2" class="spin"></i> Executing Inference Engine...`;
+                lucide.createIcons();
+                showScreen(screenAsk);
+            }
+
             const payload = { action: actionType, message: value };
             
             const response = await fetch('/api/chat', {
@@ -62,6 +96,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             if (data.isAsking) {
+                document.getElementById('btn-yes').style.display = 'inline-block';
+                document.getElementById('btn-no').style.display = 'inline-block';
                 askPrompt.textContent = data.reply.replace(/[\*\_]/g, '');
                 showScreen(screenAsk);
             } 
@@ -105,14 +141,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     resetBtn.addEventListener('click', () => {
         terminalLog.innerHTML = '';
-        appendTerminal('sys', 'Initializing inference engine session...\nReady.');
+        typeWriterTerminal('sys', 'Initializing inference engine session...\nReady.');
         sendAction('reset');
         showScreen(screenInitial);
         lucide.createIcons(); // Re-initialize icons if DOM changes
     });
 
     // Initial greeting in terminal
-    appendTerminal('sys', 'CyberPro Expert System Loaded. Awaiting facts...');
+    typeWriterTerminal('sys', 'CyberPro Expert System Loaded. Awaiting facts...');
 
     // Initialize Lucide Icons
     lucide.createIcons();
