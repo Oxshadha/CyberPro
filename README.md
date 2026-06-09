@@ -31,3 +31,22 @@ CyberPro is a Prolog-based expert system designed to act as a Security Operation
    ```prolog
    ?- diagnose.
    ```
+
+## Using the Interactive Chat Frontend
+
+In addition to the terminal, CyberPro includes a custom ChatGPT-like Web Interface!
+
+1. **Start the Chat Server:**
+   Open a new terminal window, navigate to the `chat-ui` folder, and start the Node.js server:
+   ```bash
+   cd chat-ui
+   npm install
+   npm start
+   ```
+
+2. **Open the Interface:**
+   Open your web browser and navigate to:
+   [http://localhost:3000](http://localhost:3000)
+
+3. **Start Chatting:**
+   Type a natural sentence like *"I am seeing port scans and unauthorized access."* The Node.js wrapper will parse your message, securely query the Prolog engine in the background, and provide a formatted diagnosis report.
