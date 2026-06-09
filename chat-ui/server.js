@@ -13,7 +13,9 @@ app.use(express.static('public'));
 // --- Chat Session State ---
 // For a university project, we use a simple global in-memory session.
 let currentSession = {
-    knownFacts: [] // Stores objects like { yesNo: 'yes', symptom: 'port_scan' }
+    knownFacts: [], // Stores objects like { yesNo: 'yes', symptom: 'port_scan' }
+    excludedThreats: [], // Array of strings (threats to skip for alternate answers)
+    lastThreat: null // To support 'explain' feature
 };
 let isAsking = false;
 let currentQuestion = null;
@@ -51,18 +53,51 @@ const QUESTION_MAP = {
 };
 
 app.post('/api/chat', (req, res) => {
-    const userMessage = req.body.message.toLowerCase();
+    const action = req.body.action || 'chat';
+    const userMessage = (req.body.message || '').toLowerCase();
+
+    // Handle EXPLAIN feature
+    if (action === 'explain') {
+        if (!currentSession.lastThreat) {
+            return res.json({ reply: 'There is no recent diagnosis to explain. Please start a new diagnosis.' });
+        }
+        const query = `api_explain(${currentSession.lastThreat}).`;
+        const swiplCommand = `PATH=$PATH:/Applications/SWI-Prolog.app/Contents/MacOS swipl -s ../cyber_pro.pl -g "${query}" -t halt`;
+        
+        exec(swiplCommand, (error, stdout, stderr) => {
+            const output = stdout.trim();
+            const expLine = output.split('\n').find(l => l.startsWith('EXPLANATION='));
+            if (expLine) {
+                const text = expLine.split('=')[1];
+                return res.json({ reply: `### 📖 Detailed Explanation\n\n${text}\n\n*(Use 'New Conversation' or type a new symptom to start over).*` });
+            }
+            return res.json({ reply: 'Explanation not available.' });
+        });
+        return;
+    }
+
+    // Handle ALTERNATE feature
+    if (action === 'alternate') {
+        if (!currentSession.lastThreat) {
+            return res.json({ reply: 'There is no recent diagnosis to find alternatives for.' });
+        }
+        currentSession.excludedThreats.push(currentSession.lastThreat);
+        // We will run the diagnosis again using the same known facts, but skipping excluded threats!
+        // The flow will fall through to the Prolog execution below.
+    }
 
     // 1. Handle Reset
     if (userMessage.includes('reset') || userMessage.includes('start over')) {
         currentSession.knownFacts = [];
+        currentSession.excludedThreats = [];
+        currentSession.lastThreat = null;
         isAsking = false;
         currentQuestion = null;
         return res.json({ reply: 'Session reset. I am ready. What symptoms are you experiencing?' });
     }
 
     // 2. Handle Yes/No Answers
-    if (isAsking) {
+    if (isAsking && action === 'chat') {
         if (userMessage.includes('yes') || userMessage.includes('yep') || userMessage.includes('yeah')) {
             currentSession.knownFacts.push({ yesNo: 'yes', symptom: currentQuestion });
         } else if (userMessage.includes('no') || userMessage.includes('nope') || userMessage.includes('nah')) {
@@ -75,7 +110,7 @@ app.post('/api/chat', (req, res) => {
         currentQuestion = null;
     } 
     // 3. Handle Initial Symptoms
-    else {
+    else if (action === 'chat') {
         let foundAny = false;
         for (const [phrase, event] of Object.entries(EVENT_MAP)) {
             if (userMessage.includes(phrase)) {
@@ -97,11 +132,14 @@ app.post('/api/chat', (req, res) => {
     // 4. Build the Prolog query with current state
     let assertStatements = currentSession.knownFacts.map(f => `assert_fact(${f.yesNo}, ${f.symptom})`).join(', ');
     if (!assertStatements) assertStatements = 'true';
+    
+    // Format the excluded threats list for Prolog: e.g., [ddos, sql_injection]
+    const excludedList = `[${currentSession.excludedThreats.join(',')}]`;
 
     const query = `
         reset_session,
         ${assertStatements},
-        api_diagnose.
+        api_diagnose(${excludedList}).
     `;
 
     // 5. Execute Prolog securely
@@ -144,26 +182,31 @@ app.post('/api/chat', (req, res) => {
         else if (resultType === 'found') {
             const formattedThreat = threat.replace(/_/g, ' ').toUpperCase();
             
-            // Auto-reset session after finding a threat so they can start over
-            currentSession.knownFacts = [];
+            // Save the last threat found to enable EXPLAIN and ALTERNATE features
+            currentSession.lastThreat = threat;
+            
+            // Note: We don't clear knownFacts here because the user might ask for an Alternate Answer!
             isAsking = false;
             
-            return res.json({ reply: `### 🚨 EXPERT DIAGNOSIS: ${formattedThreat} DETECTED
+            return res.json({ 
+                reply: `### 🚨 EXPERT DIAGNOSIS: ${formattedThreat} DETECTED
 Based on our consultation, my inference engine has definitively diagnosed a **${formattedThreat}**.
 
 **Calculated Risk Score:** ${score}/10
 
 ### 🛡️ Immediate Actions Required:
-${mitigation}
-
-*(Session reset. You may report new symptoms if needed).*` });
+${mitigation}`,
+                showButtons: true 
+            });
         } 
         else {
-            // Auto-reset
+            // Auto-reset when exhausted
             currentSession.knownFacts = [];
+            currentSession.excludedThreats = [];
+            currentSession.lastThreat = null;
             isAsking = false;
             return res.json({
-                reply: `I have analyzed all available symptoms and could not definitively prove a known critical attack pattern (like DDoS, SQL Injection, Ransomware, etc.). \n\nPlease continue monitoring the network. *(Session reset).*`
+                reply: `I have analyzed all available symptoms and could not definitively prove any more known critical attack patterns. \n\nPlease continue monitoring the network. *(Session reset).*`
             });
         }
     });

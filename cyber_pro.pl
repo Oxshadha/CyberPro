@@ -62,12 +62,25 @@ threat_score(insider_threat, 9).
 threat_score(reconnaissance, 3).
 
 
-% --- Module 4: API Entry Point ---
-% This is the main function called by Node.js via child_process.
-api_diagnose :-
+% --- Module 4: Explanations (Simulating RAG with Prolog Facts) ---
+explanation(ddos, 'A Distributed Denial of Service (DDoS) attack attempts to disrupt normal traffic of a targeted server by overwhelming it with a flood of Internet traffic. The presence of high network traffic combined with service unavailability is a strong indicator of this.').
+explanation(sql_injection, 'SQL Injection is a code injection technique that might destroy your database. It is one of the most common web hacking techniques. The detection of database syntax errors alongside unauthorized access indicates a successful payload execution.').
+explanation(ransomware, 'Ransomware is malicious software designed to block access to a computer system until a sum of money is paid. The combination of encrypted files and a ransom note is the definitive signature of this threat.').
+explanation(insider_threat, 'An insider threat is a malicious threat to an organization that comes from people within the organization. Unusual login times combined with data exfiltration suggests a compromised or rogue employee account.').
+explanation(reconnaissance, 'Reconnaissance is the active or passive gathering of information about a target network. A port scan coupled with multiple failed logins indicates an attacker is probing your defenses for vulnerabilities.').
+
+% --- Module 5: API Entry Point ---
+% Helper: Check if an item is NOT in a list
+not_in_list(_, []) :- !.
+not_in_list(X, [H|T]) :- X \= H, not_in_list(X, T).
+
+% This is the main function called by Node.js. It accepts a list of already found threats
+% to skip, allowing us to find "Alternate Answers".
+api_diagnose(ExcludedThreats) :-
     catch(
         (
-            threat(Threat), !, 
+            threat(Threat),
+            not_in_list(Threat, ExcludedThreats), !, 
             mitigation(Threat, Mit),
             threat_score(Threat, Score),
             format('RESULT=found~nTHREAT=~w~nSCORE=~w~nMITIGATION=~w~n', [Threat, Score, Mit])
@@ -79,8 +92,16 @@ api_diagnose :-
     ).
 
 % If no threat matches the given symptoms, and no more questions to ask:
-api_diagnose :-
+api_diagnose(_) :-
     format('RESULT=none~n').
+
+% Entry point for explanations
+api_explain(Threat) :-
+    ( explanation(Threat, Text) ->
+        format('EXPLANATION=~w~n', [Text])
+    ;
+        format('EXPLANATION=No detailed explanation available for this threat.~n')
+    ).
 
 % Clean up the session before running a new evaluation
 reset_session :-
