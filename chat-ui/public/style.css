@@ -1,11 +1,13 @@
 :root {
     --bg-color: #0f172a;
-    --chat-bg: #1e293b;
-    --user-msg: #3b82f6;
-    --ai-msg: #334155;
+    --panel-bg: #1e293b;
+    --border-color: #334155;
     --text-primary: #f8fafc;
     --text-secondary: #94a3b8;
-    --accent: #10b981;
+    --accent-color: #3b82f6;
+    --accent-hover: #2563eb;
+    --success-color: #10b981;
+    --danger-color: #ef4444;
 }
 
 * {
@@ -18,33 +20,19 @@ body {
     font-family: 'Inter', sans-serif;
     background-color: var(--bg-color);
     color: var(--text-primary);
-    height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-.chat-container {
-    width: 100%;
-    max-width: 900px;
-    height: 95vh;
-    background-color: var(--chat-bg);
-    border-radius: 16px;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    height: 100vh;
     overflow: hidden;
-    border: 1px solid #334155;
 }
 
-.chat-header {
-    padding: 20px;
-    background-color: rgba(30, 41, 59, 0.95);
-    border-bottom: 1px solid #334155;
+.app-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    backdrop-filter: blur(10px);
+    padding: 15px 30px;
+    background-color: var(--panel-bg);
+    border-bottom: 1px solid var(--border-color);
 }
 
 .logo {
@@ -52,150 +40,188 @@ body {
     align-items: center;
     gap: 12px;
 }
-
 .logo-icon {
-    width: 32px;
-    height: 32px;
+    width: 24px;
+    height: 24px;
     background: linear-gradient(135deg, #3b82f6, #10b981);
-    border-radius: 8px;
-    box-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
+    border-radius: 6px;
+}
+.logo h1 {
+    font-size: 1.2rem;
+    font-weight: 600;
 }
 
-.chat-header h1 {
-    font-size: 1.5rem;
-    font-weight: 800;
-    letter-spacing: -0.5px;
+.outline-btn {
+    padding: 8px 16px;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: white;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    transition: all 0.2s;
+}
+.outline-btn:hover {
+    background: rgba(255,255,255,0.05);
 }
 
-.chat-header p {
-    color: var(--text-secondary);
-    font-size: 0.9rem;
-}
-
-.chat-box {
+.dashboard-container {
+    display: flex;
     flex: 1;
-    padding: 30px 20px;
+    overflow: hidden;
+}
+
+/* LEFT COLUMN: WIZARD */
+.wizard-panel {
+    flex: 6;
+    padding: 40px;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 20px;
-    scroll-behavior: smooth;
+    align-items: center;
 }
 
-.message {
-    max-width: 80%;
-    display: flex;
-    animation: fadeIn 0.3s ease-out forwards;
+.wizard-screen {
+    width: 100%;
+    max-width: 800px;
+    animation: fadeIn 0.3s ease-in-out;
 }
+.hidden {
+    display: none !important;
+}
+
+h2 {
+    font-size: 1.8rem;
+    font-weight: 800;
+    margin-bottom: 10px;
+    text-align: center;
+}
+.subtitle {
+    color: var(--text-secondary);
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.symptom-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.symptom-card {
+    background-color: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: left;
+    cursor: pointer;
+    color: var(--text-primary);
+    transition: all 0.2s;
+}
+.symptom-card:hover {
+    border-color: var(--accent-color);
+    background-color: rgba(59, 130, 246, 0.05);
+    transform: translateY(-2px);
+}
+.symptom-card h3 {
+    font-size: 1.1rem;
+    margin-bottom: 8px;
+}
+.symptom-card p {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+/* ASK CARD */
+.ask-card {
+    background-color: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 40px;
+    text-align: center;
+}
+.prompt-text {
+    font-size: 1.4rem;
+    font-weight: 600;
+    margin-bottom: 30px;
+}
+.button-group {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+}
+.action-btn {
+    padding: 15px 40px;
+    font-size: 1.2rem;
+    font-weight: 800;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    color: white;
+    transition: all 0.2s;
+}
+.yes-btn { background-color: var(--success-color); }
+.yes-btn:hover { background-color: #059669; }
+.no-btn { background-color: var(--danger-color); }
+.no-btn:hover { background-color: #dc2626; }
+
+/* RESULT SCREEN */
+.result-content {
+    background-color: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 30px;
+    line-height: 1.6;
+}
+.result-content h3 { margin-top: 20px; margin-bottom: 10px; color: var(--text-primary); }
+.result-content p { margin-bottom: 15px; }
+.result-content ul, .result-content ol { margin-left: 20px; margin-bottom: 15px; }
+
+/* RIGHT COLUMN: TERMINAL */
+.terminal-panel {
+    flex: 4;
+    background-color: #000;
+    border-left: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+}
+.terminal-header {
+    background-color: #1e1e1e;
+    padding: 10px 15px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid #333;
+}
+.dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+.dot.red { background-color: #ff5f56; }
+.dot.yellow { background-color: #ffbd2e; }
+.dot.green { background-color: #27c93f; }
+.terminal-title {
+    color: #888;
+    font-size: 0.85rem;
+    margin-left: 10px;
+    font-family: 'Inter', sans-serif;
+}
+.terminal-log {
+    flex: 1;
+    padding: 15px;
+    font-family: 'Fira Code', monospace;
+    font-size: 0.85rem;
+    color: #10b981;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    line-height: 1.5;
+}
+.terminal-log .command { color: #3b82f6; }
+.terminal-log .output { color: #d1d5db; }
 
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
 }
-
-.user-message {
-    align-self: flex-end;
-}
-
-.ai-message {
-    align-self: flex-start;
-}
-
-.message-content {
-    padding: 16px 20px;
-    border-radius: 12px;
-    font-size: 1rem;
-    line-height: 1.6;
-}
-
-.user-message .message-content {
-    background-color: var(--user-msg);
-    color: #fff;
-    border-bottom-right-radius: 4px;
-}
-
-.ai-message .message-content {
-    background-color: var(--ai-msg);
-    color: var(--text-primary);
-    border-bottom-left-radius: 4px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-}
-
-.ai-message .message-content h3 {
-    margin-top: 10px;
-    margin-bottom: 5px;
-    color: #f8fafc;
-}
-
-.ai-message .message-content strong {
-    color: var(--accent);
-}
-
-.input-area {
-    padding: 20px;
-    background-color: var(--chat-bg);
-    border-top: 1px solid #334155;
-    display: flex;
-    gap: 15px;
-}
-
-#user-input {
-    flex: 1;
-    background-color: #0f172a;
-    border: 1px solid #334155;
-    color: #fff;
-    padding: 16px 20px;
-    border-radius: 12px;
-    font-size: 1rem;
-    outline: none;
-    transition: all 0.3s ease;
-}
-
-#user-input:focus {
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
-}
-
-#send-btn {
-    background-color: var(--user-msg);
-    color: white;
-    border: none;
-    width: 56px;
-    border-radius: 12px;
-    cursor: pointer;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    transition: background-color 0.3s ease;
-}
-
-#send-btn:hover {
-    background-color: #2563eb;
-}
-
-.typing-indicator {
-    display: flex;
-    gap: 6px;
-    padding: 8px 12px;
-    align-items: center;
-}
-
-.dot {
-    width: 8px;
-    height: 8px;
-    background-color: var(--text-secondary);
-    border-radius: 50%;
-    animation: typing 1.4s infinite ease-in-out;
-}
-
-.dot:nth-child(1) { animation-delay: -0.32s; }
-.dot:nth-child(2) { animation-delay: -0.16s; }
-
-@keyframes typing {
-    0%, 80%, 100% { transform: scale(0); }
-    40% { transform: scale(1); }
-}
-
-/* Markdown styling inside AI messages */
-.ai-message .message-content p { margin-bottom: 10px; }
-.ai-message .message-content ul, .ai-message .message-content ol { margin-left: 20px; margin-bottom: 10px; }

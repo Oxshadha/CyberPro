@@ -1,130 +1,103 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const chatBox = document.getElementById('chat-box');
-    const userInput = document.getElementById('user-input');
-    const sendBtn = document.getElementById('send-btn');
+    // Screens
+    const screenInitial = document.getElementById('screen-initial');
+    const screenAsk = document.getElementById('screen-ask');
+    const screenResult = document.getElementById('screen-result');
+    
+    // Elements
+    const askPrompt = document.getElementById('ask-prompt');
+    const resultContent = document.getElementById('result-content');
+    const terminalLog = document.getElementById('terminal-log');
+    
+    // Buttons
+    const resetBtn = document.getElementById('reset-btn');
+    const btnYes = document.getElementById('btn-yes');
+    const btnNo = document.getElementById('btn-no');
+    const symptomCards = document.querySelectorAll('.symptom-card');
 
-    function addMessage(text, isUser = false) {
-        const msgDiv = document.createElement('div');
-        msgDiv.className = `message ${isUser ? 'user-message' : 'ai-message'}`;
+    function appendTerminal(command, output) {
+        const cmdSpan = document.createElement('span');
+        cmdSpan.className = 'command';
+        cmdSpan.textContent = `> ${command}\n`;
         
-        const contentDiv = document.createElement('div');
-        contentDiv.className = 'message-content';
+        const outSpan = document.createElement('span');
+        outSpan.className = 'output';
+        outSpan.textContent = `${output}\n\n`;
         
-        if (isUser) {
-            contentDiv.textContent = text;
-        } else {
-            // Render markdown using marked.js
-            contentDiv.innerHTML = marked.parse(text);
-        }
-
-        msgDiv.appendChild(contentDiv);
-        chatBox.appendChild(msgDiv);
-        chatBox.scrollTop = chatBox.scrollHeight;
+        terminalLog.appendChild(cmdSpan);
+        terminalLog.appendChild(outSpan);
+        terminalLog.scrollTop = terminalLog.scrollHeight;
     }
 
-    function addTypingIndicator() {
-        const msgDiv = document.createElement('div');
-        msgDiv.className = 'message ai-message typing';
-        msgDiv.id = 'typing-indicator';
+    function showScreen(screen) {
+        screenInitial.classList.add('hidden');
+        screenAsk.classList.add('hidden');
+        screenResult.classList.add('hidden');
         
-        const contentDiv = document.createElement('div');
-        contentDiv.className = 'message-content typing-indicator';
-        contentDiv.innerHTML = '<div class="dot"></div><div class="dot"></div><div class="dot"></div>';
-        
-        msgDiv.appendChild(contentDiv);
-        chatBox.appendChild(msgDiv);
-        chatBox.scrollTop = chatBox.scrollHeight;
+        screen.classList.remove('hidden');
     }
 
-    function removeTypingIndicator() {
-        const indicator = document.getElementById('typing-indicator');
-        if (indicator) {
-            indicator.remove();
-        }
-    }
-
-    const newChatBtn = document.getElementById('new-chat-btn');
-
-    async function sendMessage(overrideText = null, actionOverride = null) {
-        const text = overrideText !== null ? overrideText : userInput.value.trim();
-        if (!text && !actionOverride) return;
-
-        if (overrideText === null) {
-            userInput.value = '';
-            addMessage(text, true);
-        }
-
-        addTypingIndicator();
-
+    async function sendAction(actionType, value = '') {
         try {
-            let payload = { message: text, action: actionOverride || 'chat' };
-
+            const payload = { action: actionType, message: value };
+            
             const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
             const data = await response.json();
-            
-            removeTypingIndicator();
-            
-            let htmlContent = marked.parse(data.reply);
-            
-            if (data.showButtons) {
-                htmlContent += `
-                    <div style="margin-top: 15px; display: flex; gap: 10px;">
-                        <button onclick="window.sendExplain()" style="padding: 8px 12px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-family: Inter;">🔍 Explain</button>
-                    </div>
-                `;
+
+            // Log to terminal
+            if (data.terminalOutput) {
+                appendTerminal(data.terminalOutput.command, data.terminalOutput.output);
             }
 
-            // Create and append the AI message
-            const msgDiv = document.createElement('div');
-            msgDiv.className = 'message ai-message';
-            const contentDiv = document.createElement('div');
-            contentDiv.className = 'message-content';
-            contentDiv.innerHTML = htmlContent;
-            
-            msgDiv.appendChild(contentDiv);
-            chatBox.appendChild(msgDiv);
-            chatBox.scrollTop = chatBox.scrollHeight;
-
-            // Render mermaid diagrams if any are present
-            if (htmlContent.includes('language-mermaid')) {
-                document.querySelectorAll('.language-mermaid').forEach(el => {
-                    const mermaidDiv = document.createElement('div');
-                    mermaidDiv.className = 'mermaid';
-                    mermaidDiv.textContent = el.textContent;
-                    el.parentElement.replaceWith(mermaidDiv);
-                });
-                mermaid.run();
+            // Handle Response
+            if (data.isAsking) {
+                askPrompt.textContent = data.reply.replace(/[\*\_]/g, '');
+                showScreen(screenAsk);
+            } 
+            else if (data.reply) {
+                let htmlContent = marked.parse(data.reply);
+                resultContent.innerHTML = htmlContent;
+                showScreen(screenResult);
+                
+                // Render mermaid
+                if (htmlContent.includes('language-mermaid')) {
+                    document.querySelectorAll('.language-mermaid').forEach(el => {
+                        const mermaidDiv = document.createElement('div');
+                        mermaidDiv.className = 'mermaid';
+                        mermaidDiv.textContent = el.textContent;
+                        el.parentElement.replaceWith(mermaidDiv);
+                    });
+                    mermaid.run();
+                }
             }
-            
         } catch (error) {
-            removeTypingIndicator();
-            addMessage('⚠️ Sorry, there was an error connecting to the CyberPro Node.js engine.', false);
+            console.error(error);
+            alert("Error communicating with server.");
         }
     }
 
-    // Expose a global function for the Explain button
-    window.sendExplain = function() {
-        sendMessage('', 'explain');
-    };
-
-    sendBtn.addEventListener('click', () => sendMessage());
-    userInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') sendMessage();
+    // Event Listeners
+    symptomCards.forEach(card => {
+        card.addEventListener('click', () => {
+            const symptom = card.getAttribute('data-symptom');
+            sendAction('initial_symptom', symptom);
+        });
     });
 
-    newChatBtn.addEventListener('click', () => {
-        chatBox.innerHTML = `
-            <div class="message ai-message">
-                <div class="message-content">
-                    Hello! I am CyberPro, your AI SOC Triage Assistant. Describe any suspicious network events you are experiencing, and I will analyze the threat for you.
-                    <br><br>
-                    *Examples: "port scan", "malware signature", "data exfiltration", "suspicious login"*
-                </div>
-            </div>`;
-        sendMessage('reset', 'chat'); // tell backend to reset session silently
+    btnYes.addEventListener('click', () => sendAction('answer', 'yes'));
+    btnNo.addEventListener('click', () => sendAction('answer', 'no'));
+
+    resetBtn.addEventListener('click', () => {
+        terminalLog.innerHTML = '';
+        appendTerminal('sys', 'Initializing inference engine session...\nReady.');
+        sendAction('reset');
+        showScreen(screenInitial);
     });
+
+    // Initial greeting in terminal
+    appendTerminal('sys', 'CyberPro Expert System Loaded. Awaiting facts...');
 });

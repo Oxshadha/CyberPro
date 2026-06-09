@@ -11,33 +11,13 @@ app.use(express.json());
 app.use(express.static('public'));
 
 // --- Chat Session State ---
-// For a university project, we use a simple global in-memory session.
 let currentSession = {
-    knownFacts: [], // Stores objects like { yesNo: 'yes', symptom: 'port_scan' }
-    excludedThreats: [], // Array of strings (threats to skip for alternate answers)
-    lastThreat: null // To support 'explain' feature
+    knownFacts: [], 
+    excludedThreats: [], 
+    lastThreat: null
 };
 let isAsking = false;
 let currentQuestion = null;
-
-// --- Natural Language Mapping ---
-const EVENT_MAP = {
-    'server is down': 'service_unavailable',
-    'unavailable': 'service_unavailable',
-    'offline': 'service_unavailable',
-    'high traffic': 'high_network_traffic',
-    'ddos': 'high_network_traffic',
-    'database error': 'database_errors',
-    'sql error': 'database_errors',
-    'unauthorized': 'unauthorized_access',
-    'breach': 'unauthorized_access',
-    'encrypted': 'files_encrypted',
-    'ransom': 'ransom_note',
-    'weird time': 'unusual_login_times',
-    'exfiltration': 'data_exfiltration',
-    'port scan': 'port_scan',
-    'failed login': 'multiple_failed_logins'
-};
 
 const QUESTION_MAP = {
     'service_unavailable': 'Are you experiencing service unavailability (e.g., website offline)?',
@@ -56,86 +36,28 @@ app.post('/api/chat', (req, res) => {
     const action = req.body.action || 'chat';
     const userMessage = (req.body.message || '').toLowerCase();
 
-    // Handle EXPLAIN feature
-    if (action === 'explain') {
-        if (!currentSession.lastThreat) {
-            return res.json({ reply: 'There is no recent diagnosis to explain. Please start a new diagnosis.' });
-        }
-        const query = `api_explain(${currentSession.lastThreat}).`;
-        const swiplCommand = `PATH=$PATH:/Applications/SWI-Prolog.app/Contents/MacOS swipl -s ../cyber_pro.pl -g "${query}" -t halt`;
-        
-        exec(swiplCommand, (error, stdout, stderr) => {
-            const output = stdout.trim();
-            const expLine = output.split('\n').find(l => l.startsWith('EXPLANATION='));
-            if (expLine) {
-                const text = expLine.split('=')[1];
-                
-                const threat = currentSession.lastThreat;
-                let chartRules = '';
-            if (threat === 'ddos') {
-                chartRules = `[FACT] known(yes, service_unavailable)  ───> [RULE] verify(service_unavailable) ────┐\n                                                                                   │\n                                                                                   ├───> [CONCLUSION] threat(ddos)\n                                                                                   │\n[FACT] known(yes, high_network_traffic) ───> [RULE] verify(high_network_traffic) ──┘`;
-            } else if (threat === 'sql_injection') {
-                chartRules = `[FACT] known(yes, database_errors)      ───> [RULE] verify(database_errors) ────────┐\n                                                                                   │\n                                                                                   ├───> [CONCLUSION] threat(sql_injection)\n                                                                                   │\n[FACT] known(yes, unauthorized_access)  ───> [RULE] verify(unauthorized_access) ────┘`;
-            } else if (threat === 'ransomware') {
-                chartRules = `[FACT] known(yes, files_encrypted)      ───> [RULE] verify(files_encrypted) ────────┐\n                                                                                   │\n                                                                                   ├───> [CONCLUSION] threat(ransomware)\n                                                                                   │\n[FACT] known(yes, ransom_note)          ───> [RULE] verify(ransom_note) ────────────┘`;
-            } else if (threat === 'insider_threat') {
-                chartRules = `[FACT] known(yes, unusual_login_times)  ───> [RULE] verify(unusual_login_times) ────┐\n                                                                                   │\n                                                                                   ├───> [CONCLUSION] threat(insider_threat)\n                                                                                   │\n[FACT] known(yes, data_exfiltration)    ───> [RULE] verify(data_exfiltration) ──────┘`;
-            } else if (threat === 'reconnaissance') {
-                chartRules = `[FACT] known(yes, port_scan)            ───> [RULE] verify(port_scan) ──────────────┐\n                                                                                   │\n                                                                                   ├───> [CONCLUSION] threat(reconnaissance)\n                                                                                   │\n[FACT] known(yes, multiple_failed_logins)──> [RULE] verify(multiple_failed_logins) ─┘`;
-            }
-
-            const chartHtml = chartRules ? `\n\n### 🔄 Inference Flow\n\`\`\`text\n${chartRules}\n\`\`\`` : '';
-
-            return res.json({ reply: `### 📖 Detailed Explanation\n\n${text}${chartHtml}\n\n*(Explanation displayed. Use 'New Conversation' to start over).*` });
-        }
-        return res.json({ reply: 'Explanation not available.' });
-        });
-        return;
-    }
-
     // 1. Handle Reset
-    if (userMessage.includes('reset') || userMessage.includes('start over') || action === 'reset') {
+    if (action === 'reset') {
         currentSession.knownFacts = [];
         currentSession.excludedThreats = [];
         currentSession.lastThreat = null;
         isAsking = false;
         currentQuestion = null;
-        // If it was a background reset via button, don't send a visible reply, but we must return valid JSON.
-        if (action === 'reset') {
-            return res.json({ reply: '', showButtons: false });
-        }
-        return res.json({ reply: 'Session reset. I am ready. What symptoms are you experiencing?' });
+        return res.json({ reply: 'Session reset.' });
     }
 
-    // 2. Handle Yes/No Answers
-    if (isAsking && action === 'chat') {
-        if (userMessage.includes('yes') || userMessage.includes('yep') || userMessage.includes('yeah')) {
-            currentSession.knownFacts.push({ yesNo: 'yes', symptom: currentQuestion });
-        } else if (userMessage.includes('no') || userMessage.includes('nope') || userMessage.includes('nah')) {
-            currentSession.knownFacts.push({ yesNo: 'no', symptom: currentQuestion });
-        } else {
-            return res.json({ reply: `Please answer **yes** or **no** to the question:\n\n*${QUESTION_MAP[currentQuestion]}*` });
-        }
-        
+    // 2. Handle Action Area Responses (Yes/No)
+    if (isAsking && action === 'answer') {
+        const answer = userMessage === 'yes' ? 'yes' : 'no';
+        currentSession.knownFacts.push({ yesNo: answer, symptom: currentQuestion });
         isAsking = false;
         currentQuestion = null;
     } 
-    // 3. Handle Initial Symptoms
-    else if (action === 'chat') {
-        let foundAny = false;
-        for (const [phrase, event] of Object.entries(EVENT_MAP)) {
-            if (userMessage.includes(phrase)) {
-                if (!currentSession.knownFacts.find(f => f.symptom === event)) {
-                    currentSession.knownFacts.push({ yesNo: 'yes', symptom: event });
-                    foundAny = true;
-                }
-            }
-        }
-        
-        if (!foundAny && currentSession.knownFacts.length === 0) {
-            return res.json({
-                reply: "I didn't detect any specific security events. Please describe what you are seeing (e.g., 'My server is down' or 'We noticed a port scan')."
-            });
+    // 3. Handle Initial Symptom Selection
+    else if (action === 'initial_symptom') {
+        const selectedSymptom = userMessage.trim();
+        if (!currentSession.knownFacts.find(f => f.symptom === selectedSymptom)) {
+            currentSession.knownFacts.push({ yesNo: 'yes', symptom: selectedSymptom });
         }
     }
 
@@ -150,7 +72,8 @@ app.post('/api/chat', (req, res) => {
         api_diagnose(${excludedList}).
     `;
 
-    const swiplCommand = `PATH=$PATH:/Applications/SWI-Prolog.app/Contents/MacOS swipl -s ../cyber_pro.pl -g "${query.trim().replace(/\n/g, ' ')}" -t halt`;
+    const cleanQuery = query.trim().replace(/\n/g, ' ').replace(/\s+/g, ' ');
+    const swiplCommand = `PATH=$PATH:/Applications/SWI-Prolog.app/Contents/MacOS swipl -s ../cyber_pro.pl -g "${cleanQuery}" -t halt`;
 
     exec(swiplCommand, (error, stdout, stderr) => {
         if (error) {
@@ -162,6 +85,13 @@ app.post('/api/chat', (req, res) => {
         }
         
         const output = stdout.trim();
+        
+        // Prepare terminal output payload
+        const terminalOutput = {
+            command: swiplCommand,
+            output: output
+        };
+
         const lines = output.split('\n').map(l => l.trim());
         
         let resultType = '';
@@ -178,56 +108,70 @@ app.post('/api/chat', (req, res) => {
             if (lines[i].startsWith('MITIGATION=')) mitigation = lines[i].split('=')[1];
         }
 
-        if (resultType === 'ask') {
-            isAsking = true;
-            currentQuestion = symptom;
-            const humanQuestion = QUESTION_MAP[symptom] || `Are you experiencing ${symptom.replace(/_/g, ' ')}?`;
-            return res.json({ reply: `Hmm, I need more information to confirm a diagnosis.\n\n**${humanQuestion}** (yes/no)` });
-        } 
-        else if (resultType === 'found') {
+        if (resultType === 'found') {
             const formattedThreat = threat.replace(/_/g, ' ').toUpperCase();
-            currentSession.lastThreat = threat;
             
             let richMitigation = '';
+            let chartRules = '';
+
             if (threat === 'ddos') {
                 richMitigation = `1. <span style="color: #10b981;">**Analyze Traffic Patterns:**</span> Check firewall and router logs for unusual spikes from specific geographic regions or IP ranges.\n2. <span style="color: #10b981;">**Implement Rate Limiting:**</span> Apply immediate rate limiting rules on the edge routers or WAF to drop excessive packets.\n3. <span style="color: #10b981;">**Contact ISP:**</span> Notify your Internet Service Provider to upstream the traffic filtering.\n\n<br>\n<span style="color: #ef4444;"><b>What NOT to do:</b></span> Do NOT restart the servers in a panic, as this does not stop the incoming traffic and only extends downtime.`;
+                chartRules = `[FACT] known(yes, service_unavailable)  ───> [RULE] verify(service_unavailable) ────┐\n                                                                                   │\n                                                                                   ├───> [CONCLUSION] threat(ddos)\n                                                                                   │\n[FACT] known(yes, high_network_traffic) ───> [RULE] verify(high_network_traffic) ──┘`;
             } else if (threat === 'sql_injection') {
                 richMitigation = `1. <span style="color: #10b981;">**Review Web Logs:**</span> Check HTTP access logs for unusual URL parameters containing SQL commands.\n2. <span style="color: #10b981;">**Audit Database Logs:**</span> Inspect database transaction logs to identify which tables were accessed or exfiltrated.\n3. <span style="color: #10b981;">**Patch Vulnerable Endpoints:**</span> Identify the exact API endpoint that allowed the injection and apply parameterized queries immediately.\n\n<br>\n<span style="color: #ef4444;"><b>What NOT to do:</b></span> Do NOT leave the vulnerable application online while investigating; take it offline or route it through a strict WAF immediately.`;
+                chartRules = `[FACT] known(yes, database_errors)      ───> [RULE] verify(database_errors) ────────┐\n                                                                                   │\n                                                                                   ├───> [CONCLUSION] threat(sql_injection)\n                                                                                   │\n[FACT] known(yes, unauthorized_access)  ───> [RULE] verify(unauthorized_access) ────┘`;
             } else if (threat === 'ransomware') {
                 richMitigation = `1. <span style="color: #10b981;">**Isolate Infected Hosts:**</span> Immediately disconnect the infected machines from the network to prevent lateral movement.\n2. <span style="color: #10b981;">**Identify the Variant:**</span> Check the ransom note for specific email addresses or extensions to identify the ransomware family.\n3. <span style="color: #10b981;">**Secure Backups:**</span> Verify that your offline or immutable backups are safe and have not been compromised.\n\n<br>\n<span style="color: #ef4444;"><b>What NOT to do:</b></span> Do NOT pay the ransom! Paying does not guarantee data recovery and funds criminal organizations.`;
+                chartRules = `[FACT] known(yes, files_encrypted)      ───> [RULE] verify(files_encrypted) ────────┐\n                                                                                   │\n                                                                                   ├───> [CONCLUSION] threat(ransomware)\n                                                                                   │\n[FACT] known(yes, ransom_note)          ───> [RULE] verify(ransom_note) ────────────┘`;
             } else if (threat === 'insider_threat') {
                 richMitigation = `1. <span style="color: #10b981;">**Audit Account Activity:**</span> Review the compromised user's active directory and VPN logs to see what files they recently accessed.\n2. <span style="color: #10b981;">**Revoke Access:**</span> Immediately suspend the user's accounts, invalidate active sessions, and rotate all shared credentials.\n3. <span style="color: #10b981;">**Check Exfiltration Points:**</span> Inspect DLP logs, USB access logs, and outbound cloud storage traffic to determine what was stolen.\n\n<br>\n<span style="color: #ef4444;"><b>What NOT to do:</b></span> Do NOT alert the suspected user prematurely before securing the logs and evidence, as they may attempt to destroy audit trails.`;
+                chartRules = `[FACT] known(yes, unusual_login_times)  ───> [RULE] verify(unusual_login_times) ────┐\n                                                                                   │\n                                                                                   ├───> [CONCLUSION] threat(insider_threat)\n                                                                                   │\n[FACT] known(yes, data_exfiltration)    ───> [RULE] verify(data_exfiltration) ──────┘`;
             } else if (threat === 'reconnaissance') {
                 richMitigation = `1. <span style="color: #10b981;">**Correlate IP Addresses:**</span> Check firewall logs to identify the source IP addresses conducting the port scans and failed logins.\n2. <span style="color: #10b981;">**Block Source IPs:**</span> Add the offending IP addresses or subnets to the firewall's strict drop list.\n3. <span style="color: #10b981;">**Review External Footprint:**</span> Ensure no unnecessary ports (like RDP/3389 or SSH/22) are exposed to the public internet.\n\n<br>\n<span style="color: #ef4444;"><b>What NOT to do:</b></span> Do NOT ignore these early warning signs; reconnaissance is almost always followed by a targeted exploit attempt.`;
+                chartRules = `[FACT] known(yes, port_scan)            ───> [RULE] verify(port_scan) ──────────────┐\n                                                                                   │\n                                                                                   ├───> [CONCLUSION] threat(reconnaissance)\n                                                                                   │\n[FACT] known(yes, multiple_failed_logins)──> [RULE] verify(multiple_failed_logins) ─┘`;
             }
+
+            const chartHtml = chartRules ? `\n\n### 🔄 Inference Trace Diagram\n\`\`\`mermaid\nflowchart LR\n${chartRules}\n\`\`\`` : '';
 
             // Auto-reset
             currentSession.knownFacts = [];
             isAsking = false;
             
             return res.json({ 
-                reply: `### 🚨 EXPERT DIAGNOSIS: ${formattedThreat} DETECTED
+                terminalOutput,
+                reply: `## 🚨 EXPERT DIAGNOSIS: ${formattedThreat}
 Based on our consultation, my inference engine has definitively diagnosed a **${formattedThreat}**.
 
 **Calculated Risk Score:** ${score}/10
 
 ### 🛡️ Immediate Actions Required:
-${richMitigation}`,
-                showButtons: true 
+${richMitigation}
+${chartHtml}
+`
             });
         }
+        else if (resultType === 'ask') {
+            isAsking = true;
+            currentQuestion = symptom;
+            return res.json({ 
+                terminalOutput,
+                reply: QUESTION_MAP[symptom] || `Is the following true: ${symptom}?`, 
+                isAsking: true 
+            });
+        } 
         else {
             currentSession.knownFacts = [];
             currentSession.excludedThreats = [];
             currentSession.lastThreat = null;
             isAsking = false;
             return res.json({
-                reply: `I have analyzed all available symptoms and could not definitively prove any more known critical attack patterns. \n\nPlease continue monitoring the network. *(Session reset).*`
+                terminalOutput,
+                reply: `### ❌ No Definite Conclusion\nI have analyzed all available symptoms and could not definitively prove any known critical attack patterns. \n\nPlease continue monitoring the network.`
             });
         }
     });
 });
 
 app.listen(port, () => {
-    console.log(`CyberPro Chat UI running at http://localhost:${port}`);
+    console.log(`CyberPro Dashboard UI running at http://localhost:${port}`);
 });

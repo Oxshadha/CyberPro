@@ -3,52 +3,88 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CyberPro - SOC Assistant</title>
+    <title>CyberPro - Diagnostic Dashboard</title>
     <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
     <script>mermaid.initialize({ startOnLoad: false, theme: 'dark', flowchart: { htmlLabels: false } });</script>
 </head>
 <body>
-    <div class="chat-container">
-        <header class="chat-header">
-            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                <div>
-                    <div class="logo">
-                        <div class="logo-icon"></div>
-                        <h1>CyberPro</h1>
+    <header class="app-header">
+        <div class="logo">
+            <div class="logo-icon"></div>
+            <h1>CyberPro SOC Diagnostic System</h1>
+        </div>
+        <button id="reset-btn" class="outline-btn">🔄 New Diagnosis</button>
+    </header>
+
+    <div class="dashboard-container">
+        <!-- LEFT COLUMN: Diagnostic Wizard -->
+        <div class="wizard-panel">
+            
+            <!-- SCREEN 1: Initial Observation -->
+            <div id="screen-initial" class="wizard-screen active">
+                <h2>Step 1: Primary Observation</h2>
+                <p class="subtitle">Select the primary anomaly you are observing on the network.</p>
+                
+                <div class="symptom-grid">
+                    <button class="symptom-card" data-symptom="service_unavailable">
+                        <h3>🌐 Network / Service Offline</h3>
+                        <p>Websites are unreachable or timing out.</p>
+                    </button>
+                    <button class="symptom-card" data-symptom="database_errors">
+                        <h3>❌ Database Crashing</h3>
+                        <p>SQL syntax errors or DB connection drops.</p>
+                    </button>
+                    <button class="symptom-card" data-symptom="files_encrypted">
+                        <h3>🔒 Inaccessible Files</h3>
+                        <p>Files won't open or have strange extensions.</p>
+                    </button>
+                    <button class="symptom-card" data-symptom="unusual_login_times">
+                        <h3>⏰ Strange Login Times</h3>
+                        <p>Users logging in at 3 AM or from unusual places.</p>
+                    </button>
+                    <button class="symptom-card" data-symptom="port_scan">
+                        <h3>🕵️ Repeated Connection Attempts</h3>
+                        <p>Firewall is blocking sequential port requests.</p>
+                    </button>
+                </div>
+            </div>
+
+            <!-- SCREEN 2: Ask Follow-up -->
+            <div id="screen-ask" class="wizard-screen hidden">
+                <h2>Step 2: Refining Diagnosis</h2>
+                <div class="ask-card">
+                    <p id="ask-prompt" class="prompt-text">Loading...</p>
+                    <div class="button-group">
+                        <button id="btn-yes" class="action-btn yes-btn">YES</button>
+                        <button id="btn-no" class="action-btn no-btn">NO</button>
                     </div>
-                    <p>Advanced SOC Triage Assistant</p>
-                </div>
-                <button id="new-chat-btn" style="padding: 8px 16px; background: transparent; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: white; cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.2s;">
-                    + New Conversation
-                </button>
-            </div>
-        </header>
-
-        <main class="chat-box" id="chat-box">
-            <div class="message ai-message">
-                <div class="message-content">
-                    Hello! I am CyberPro, your AI SOC Triage Assistant. Describe any suspicious network events you are experiencing, and I will analyze the threat for you.
-                    <br><br>
-                    *Examples: "port scan", "malware signature", "data exfiltration", "suspicious login"*
                 </div>
             </div>
-        </main>
 
-        <div class="input-area">
-            <input type="text" id="user-input" placeholder="Describe the security events here..." autocomplete="off">
-            <button id="send-btn">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="22" y1="2" x2="11" y2="13"></line>
-                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                </svg>
-            </button>
+            <!-- SCREEN 3: Result -->
+            <div id="screen-result" class="wizard-screen hidden">
+                <div id="result-content" class="result-content"></div>
+            </div>
+
+        </div>
+
+        <!-- RIGHT COLUMN: Live Prolog Terminal -->
+        <div class="terminal-panel">
+            <div class="terminal-header">
+                <span class="dot red"></span>
+                <span class="dot yellow"></span>
+                <span class="dot green"></span>
+                <span class="terminal-title">swipl — Inference Engine Logs</span>
+            </div>
+            <pre id="terminal-log" class="terminal-log"></pre>
         </div>
     </div>
+
     <script src="app.js"></script>
 </body>
 </html>
