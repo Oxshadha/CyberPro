@@ -69,6 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 let htmlContent = marked.parse(data.reply);
                 resultContent.innerHTML = htmlContent;
                 showScreen(screenResult);
+                lucide.createIcons();
                 
                 // Render mermaid
                 if (htmlContent.includes('language-mermaid')) {

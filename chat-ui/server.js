@@ -186,7 +186,7 @@ ${chartHtml}
             isAsking = false;
             return res.json({
                 terminalOutput,
-                reply: `### ❌ No Definite Conclusion\nI have analyzed all available symptoms and could not definitively prove any known critical attack patterns. \n\nPlease continue monitoring the network.`
+                reply: `### <i data-lucide="shield-check" style="color: #10b981; width: 28px; height: 28px; vertical-align: middle; margin-right: 8px;"></i> No Definite Conclusion\nI have analyzed all available symptoms and could not definitively prove any known critical attack patterns. \n\nPlease continue monitoring the network.`
             });
         }
     });
