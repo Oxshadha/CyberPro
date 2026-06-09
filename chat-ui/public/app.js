@@ -43,26 +43,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function sendMessage() {
-        const text = userInput.value.trim();
-        if (!text) return;
+    const newChatBtn = document.getElementById('new-chat-btn');
 
-        userInput.value = '';
-        addMessage(text, true);
+    async function sendMessage(overrideText = null, actionOverride = null) {
+        const text = overrideText !== null ? overrideText : userInput.value.trim();
+        if (!text && !actionOverride) return;
+
+        if (overrideText === null) {
+            userInput.value = '';
+            addMessage(text, true);
+        }
+
         addTypingIndicator();
 
         try {
-            // Check if user clicked a special button (we intercept special keywords or attach action data)
-            let payload = { message: text, action: 'chat' };
-            if (text === '%%EXPLAIN%%') {
-                payload.action = 'explain';
-                payload.message = ''; // Don't show in chat
-                chatBox.lastChild.remove(); // Remove the fake message bubble
-            } else if (text === '%%ALTERNATE%%') {
-                payload.action = 'alternate';
-                payload.message = ''; 
-                chatBox.lastChild.remove(); 
-            }
+            let payload = { message: text, action: actionOverride || 'chat' };
 
             const response = await fetch('/api/chat', {
                 method: 'POST',
@@ -73,18 +68,17 @@ document.addEventListener('DOMContentLoaded', () => {
             
             removeTypingIndicator();
             
-            // If the backend sent back buttons, we append them manually after marked.js parsing
             let htmlContent = marked.parse(data.reply);
             
             if (data.showButtons) {
                 htmlContent += `
                     <div style="margin-top: 15px; display: flex; gap: 10px;">
-                        <button onclick="document.getElementById('user-input').value='%%EXPLAIN%%'; document.getElementById('send-btn').click();" style="padding: 8px 12px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-family: Inter;">🔍 Explain</button>
-                        <button onclick="document.getElementById('user-input').value='%%ALTERNATE%%'; document.getElementById('send-btn').click();" style="padding: 8px 12px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; font-family: Inter;">🔄 Alternate Answer</button>
+                        <button onclick="window.sendExplain()" style="padding: 8px 12px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-family: Inter;">🔍 Explain</button>
                     </div>
                 `;
             }
 
+            // Create and append the AI message
             const msgDiv = document.createElement('div');
             msgDiv.className = 'message ai-message';
             const contentDiv = document.createElement('div');
@@ -94,6 +88,17 @@ document.addEventListener('DOMContentLoaded', () => {
             msgDiv.appendChild(contentDiv);
             chatBox.appendChild(msgDiv);
             chatBox.scrollTop = chatBox.scrollHeight;
+
+            // Render mermaid diagrams if any are present
+            if (htmlContent.includes('language-mermaid')) {
+                document.querySelectorAll('.language-mermaid').forEach(el => {
+                    const mermaidDiv = document.createElement('div');
+                    mermaidDiv.className = 'mermaid';
+                    mermaidDiv.textContent = el.textContent;
+                    el.parentElement.replaceWith(mermaidDiv);
+                });
+                mermaid.run();
+            }
             
         } catch (error) {
             removeTypingIndicator();
@@ -101,8 +106,25 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    sendBtn.addEventListener('click', sendMessage);
+    // Expose a global function for the Explain button
+    window.sendExplain = function() {
+        sendMessage('', 'explain');
+    };
+
+    sendBtn.addEventListener('click', () => sendMessage());
     userInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') sendMessage();
+    });
+
+    newChatBtn.addEventListener('click', () => {
+        chatBox.innerHTML = `
+            <div class="message ai-message">
+                <div class="message-content">
+                    Hello! I am CyberPro, your AI SOC Triage Assistant. Describe any suspicious network events you are experiencing, and I will analyze the threat for you.
+                    <br><br>
+                    *Examples: "port scan", "malware signature", "data exfiltration", "suspicious login"*
+                </div>
+            </div>`;
+        sendMessage('reset', 'chat'); // tell backend to reset session silently
     });
 });

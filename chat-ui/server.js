@@ -69,30 +69,42 @@ app.post('/api/chat', (req, res) => {
             const expLine = output.split('\n').find(l => l.startsWith('EXPLANATION='));
             if (expLine) {
                 const text = expLine.split('=')[1];
-                return res.json({ reply: `### 📖 Detailed Explanation\n\n${text}\n\n*(Use 'New Conversation' or type a new symptom to start over).*` });
+                
+                // Build the Mermaid Logic Chart dynamically for the Explanation section
+                const threat = currentSession.lastThreat;
+                let chartRules = '';
+                if (threat === 'ddos') {
+                    chartRules = `[FACT] known(yes, service_unavailable)  ───> [RULE] verify(service_unavailable) ────┐\n                                                                                   │\n                                                                                   ├───> [CONCLUSION] threat(ddos)\n                                                                                   │\n[FACT] known(yes, high_network_traffic) ───> [RULE] verify(high_network_traffic) ──┘`;
+                } else if (threat === 'sql_injection') {
+                    chartRules = `[FACT] known(yes, database_errors)      ───> [RULE] verify(database_errors) ────────┐\n                                                                                   │\n                                                                                   ├───> [CONCLUSION] threat(sql_injection)\n                                                                                   │\n[FACT] known(yes, unauthorized_access)  ───> [RULE] verify(unauthorized_access) ────┘`;
+                } else if (threat === 'ransomware') {
+                    chartRules = `[FACT] known(yes, files_encrypted)      ───> [RULE] verify(files_encrypted) ────────┐\n                                                                                   │\n                                                                                   ├───> [CONCLUSION] threat(ransomware)\n                                                                                   │\n[FACT] known(yes, ransom_note)          ───> [RULE] verify(ransom_note) ────────────┘`;
+                } else if (threat === 'insider_threat') {
+                    chartRules = `[FACT] known(yes, unusual_login_times)  ───> [RULE] verify(unusual_login_times) ────┐\n                                                                                   │\n                                                                                   ├───> [CONCLUSION] threat(insider_threat)\n                                                                                   │\n[FACT] known(yes, data_exfiltration)    ───> [RULE] verify(data_exfiltration) ──────┘`;
+                } else if (threat === 'reconnaissance') {
+                    chartRules = `[FACT] known(yes, port_scan)            ───> [RULE] verify(port_scan) ──────────────┐\n                                                                                   │\n                                                                                   ├───> [CONCLUSION] threat(reconnaissance)\n                                                                                   │\n[FACT] known(yes, multiple_failed_logins)──> [RULE] verify(multiple_failed_logins) ─┘`;
+                }
+
+                const chartHtml = chartRules ? `\n\n### 🔄 Inference Flow\n\`\`\`text\n${chartRules}\n\`\`\`` : '';
+
+                return res.json({ reply: `### 📖 Detailed Explanation\n\n${text}${chartHtml}\n\n*(Use 'New Conversation' or type a new symptom to start over).*` });
             }
             return res.json({ reply: 'Explanation not available.' });
         });
         return;
     }
 
-    // Handle ALTERNATE feature
-    if (action === 'alternate') {
-        if (!currentSession.lastThreat) {
-            return res.json({ reply: 'There is no recent diagnosis to find alternatives for.' });
-        }
-        currentSession.excludedThreats.push(currentSession.lastThreat);
-        // We will run the diagnosis again using the same known facts, but skipping excluded threats!
-        // The flow will fall through to the Prolog execution below.
-    }
-
     // 1. Handle Reset
-    if (userMessage.includes('reset') || userMessage.includes('start over')) {
+    if (userMessage.includes('reset') || userMessage.includes('start over') || action === 'reset') {
         currentSession.knownFacts = [];
         currentSession.excludedThreats = [];
         currentSession.lastThreat = null;
         isAsking = false;
         currentQuestion = null;
+        // If it was a background reset via button, don't send a visible reply, but we must return valid JSON.
+        if (action === 'reset') {
+            return res.json({ reply: '', showButtons: false });
+        }
         return res.json({ reply: 'Session reset. I am ready. What symptoms are you experiencing?' });
     }
 
@@ -114,7 +126,6 @@ app.post('/api/chat', (req, res) => {
         let foundAny = false;
         for (const [phrase, event] of Object.entries(EVENT_MAP)) {
             if (userMessage.includes(phrase)) {
-                // Check if we already know this fact
                 if (!currentSession.knownFacts.find(f => f.symptom === event)) {
                     currentSession.knownFacts.push({ yesNo: 'yes', symptom: event });
                     foundAny = true;
@@ -129,11 +140,9 @@ app.post('/api/chat', (req, res) => {
         }
     }
 
-    // 4. Build the Prolog query with current state
     let assertStatements = currentSession.knownFacts.map(f => `assert_fact(${f.yesNo}, ${f.symptom})`).join(', ');
     if (!assertStatements) assertStatements = 'true';
     
-    // Format the excluded threats list for Prolog: e.g., [ddos, sql_injection]
     const excludedList = `[${currentSession.excludedThreats.join(',')}]`;
 
     const query = `
@@ -142,7 +151,6 @@ app.post('/api/chat', (req, res) => {
         api_diagnose(${excludedList}).
     `;
 
-    // 5. Execute Prolog securely
     const swiplCommand = `PATH=$PATH:/Applications/SWI-Prolog.app/Contents/MacOS swipl -s ../cyber_pro.pl -g "${query.trim().replace(/\n/g, ' ')}" -t halt`;
 
     exec(swiplCommand, (error, stdout, stderr) => {
@@ -154,7 +162,6 @@ app.post('/api/chat', (req, res) => {
             return res.status(500).json({ reply: "Error communicating with the Prolog inference engine." });
         }
         
-        // 6. Parse Prolog's Stateful Output
         const output = stdout.trim();
         const lines = output.split('\n').map(l => l.trim());
         
@@ -172,7 +179,6 @@ app.post('/api/chat', (req, res) => {
             if (lines[i].startsWith('MITIGATION=')) mitigation = lines[i].split('=')[1];
         }
 
-        // 7. Decide next action based on Prolog's instruction
         if (resultType === 'ask') {
             isAsking = true;
             currentQuestion = symptom;
@@ -181,11 +187,10 @@ app.post('/api/chat', (req, res) => {
         } 
         else if (resultType === 'found') {
             const formattedThreat = threat.replace(/_/g, ' ').toUpperCase();
-            
-            // Save the last threat found to enable EXPLAIN and ALTERNATE features
             currentSession.lastThreat = threat;
             
-            // Note: We don't clear knownFacts here because the user might ask for an Alternate Answer!
+            // Auto-reset
+            currentSession.knownFacts = [];
             isAsking = false;
             
             return res.json({ 
@@ -200,7 +205,6 @@ ${mitigation}`,
             });
         } 
         else {
-            // Auto-reset when exhausted
             currentSession.knownFacts = [];
             currentSession.excludedThreats = [];
             currentSession.lastThreat = null;

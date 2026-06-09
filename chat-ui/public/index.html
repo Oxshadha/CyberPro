@@ -9,15 +9,24 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>mermaid.initialize({ startOnLoad: false, theme: 'dark', flowchart: { htmlLabels: false } });</script>
 </head>
 <body>
     <div class="chat-container">
         <header class="chat-header">
-            <div class="logo">
-                <div class="logo-icon"></div>
-                <h1>CyberPro</h1>
+            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                <div>
+                    <div class="logo">
+                        <div class="logo-icon"></div>
+                        <h1>CyberPro</h1>
+                    </div>
+                    <p>Advanced SOC Triage Assistant</p>
+                </div>
+                <button id="new-chat-btn" style="padding: 8px 16px; background: transparent; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: white; cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.2s;">
+                    + New Conversation
+                </button>
             </div>
-            <p>Advanced SOC Triage Assistant</p>
         </header>
 
         <main class="chat-box" id="chat-box">
