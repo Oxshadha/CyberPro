@@ -11,16 +11,20 @@ alert_weight(malware_signature, 5).
 alert_weight(data_exfiltration, 5).
 alert_weight(privilege_escalation, 4).
 alert_weight(unauthorized_access, 4).
+alert_weight(service_unavailable, 4).
+alert_weight(high_network_traffic, 3).
 
 % threat(ThreatName, ThreatLevel)
 threat(reconnaissance, low).
 threat(sql_injection, high).
+threat(ddos, high).
 threat(insider_threat, critical).
 threat(apt_breach, critical).
 
 % mitigation(ThreatName, Strategy)
 mitigation(reconnaissance, 'Block IP at firewall and monitor.').
 mitigation(sql_injection, 'Patch database input validation and run WAF.').
+mitigation(ddos, 'Use rate limiting, traffic filtering, and contact ISP.').
 mitigation(insider_threat, 'Revoke user credentials immediately and audit logs.').
 mitigation(apt_breach, 'Isolate network segments, initiate incident response.').
 
@@ -59,7 +63,7 @@ count_alerts(List, N) :-
 
 % List Membership
 is_valid_event(Event) :-
-    ValidEvents = [port_scan, sql_injection_attempt, suspicious_login, malware_signature, data_exfiltration, privilege_escalation, unauthorized_access],
+    ValidEvents = [port_scan, sql_injection_attempt, suspicious_login, malware_signature, data_exfiltration, privilege_escalation, unauthorized_access, service_unavailable, high_network_traffic],
     member(Event, ValidEvents).
 
 
@@ -76,6 +80,12 @@ detect_threat(reconnaissance) :-
 detect_threat(sql_injection) :-
     has_event(sql_injection_attempt),
     \+ has_event(waf_blocked).
+
+detect_threat(ddos) :-
+    has_event(service_unavailable).
+
+detect_threat(ddos) :-
+    has_event(high_network_traffic).
 
 detect_threat(insider_threat) :-
     has_event(suspicious_login),

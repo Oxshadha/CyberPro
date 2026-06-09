@@ -27,7 +27,7 @@ CyberPro is a Prolog-based expert system designed to act as a Security Operation
    ```
 
 3. **Run the Diagnostic System**:
-   In the Prolog console, start the triage process:
+   In the Prolog console, start the triage process (do not type the `?-` prompt):
    ```prolog
    ?- diagnose.
    ```

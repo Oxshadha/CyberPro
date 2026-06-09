@@ -18,21 +18,52 @@ const VALID_EVENTS = [
     'malware_signature',
     'data_exfiltration',
     'privilege_escalation',
-    'unauthorized_access'
+    'unauthorized_access',
+    'service_unavailable',
+    'high_network_traffic'
 ];
+
+// Map natural phrases to Prolog events
+const EVENT_MAP = {
+    'server is down': 'service_unavailable',
+    'unavailable': 'service_unavailable',
+    'offline': 'service_unavailable',
+    'high traffic': 'high_network_traffic',
+    'ddos': 'high_network_traffic',
+    'port scan': 'port_scan',
+    'sql injection': 'sql_injection_attempt',
+    'suspicious login': 'suspicious_login',
+    'malware': 'malware_signature',
+    'exfiltration': 'data_exfiltration',
+    'privilege escalation': 'privilege_escalation',
+    'unauthorized access': 'unauthorized_access',
+    'breach': 'unauthorized_access'
+};
 
 app.post('/api/chat', (req, res) => {
     const userMessage = req.body.message.toLowerCase();
     
     // 1. Extract keywords
-    const detectedEvents = VALID_EVENTS.filter(event => 
-        userMessage.includes(event.replace(/_/g, ' ')) || 
-        userMessage.includes(event)
-    );
+    let detectedEvents = new Set();
+    
+    // Check mapping
+    for (const [phrase, event] of Object.entries(EVENT_MAP)) {
+        if (userMessage.includes(phrase)) {
+            detectedEvents.add(event);
+        }
+    }
+    // Check direct event matches
+    for (const event of VALID_EVENTS) {
+        if (userMessage.includes(event) || userMessage.includes(event.replace(/_/g, ' '))) {
+            detectedEvents.add(event);
+        }
+    }
+    
+    detectedEvents = Array.from(detectedEvents);
 
     if (detectedEvents.length === 0) {
         return res.json({
-            reply: "I didn't detect any specific actionable security events in your message. Please provide more details (e.g., 'We noticed a port scan and a suspicious login.')."
+            reply: "I didn't detect any specific actionable security events in your message. Please provide more details (e.g., 'My server is down' or 'We noticed a port scan')."
         });
     }
 
@@ -62,14 +93,15 @@ app.post('/api/chat', (req, res) => {
     `;
 
     // 3. Execute Prolog securely via child process
-    const command = `swipl -s ../cyber_pro.pl -g "${query.trim().replace(/\n/g, ' ')}" -t halt`;
+    // Add SWI-Prolog Mac App to PATH just in case it's not globally installed
+    const swiplCommand = `PATH=$PATH:/Applications/SWI-Prolog.app/Contents/MacOS swipl -s ../cyber_pro.pl -g "${query.trim().replace(/\n/g, ' ')}" -t halt`;
 
-    exec(command, (error, stdout, stderr) => {
+    exec(swiplCommand, (error, stdout, stderr) => {
         if (error) {
             console.error(`exec error: ${error}`);
             // Provide a fallback response if SWI-Prolog is not installed locally
             if(error.message.includes("swipl: command not found") || error.code === 127) {
-                return res.json({ reply: "⚠️ **SWI-Prolog is not installed or not in PATH.** Please install SWI-Prolog (`brew install swi-prolog` or download it) to run the logic engine." });
+                return res.json({ reply: "⚠️ **SWI-Prolog is not installed or not in PATH.** Please make sure the SWI-Prolog App is in your /Applications folder, or install it via terminal." });
             }
             return res.status(500).json({ reply: "Error communicating with the Prolog inference engine." });
         }
@@ -84,7 +116,7 @@ app.post('/api/chat', (req, res) => {
 
         // Extracting values
         let threat = '', level = '', score = '', mitigation = '';
-        const lines = output.split('\\n');
+        const lines = output.split('\n').map(l => l.trim());
         for (let i = 0; i < lines.length; i++) {
             if (lines[i] === 'THREAT=') threat = lines[i+1];
             if (lines[i] === 'LEVEL=') level = lines[i+1];
