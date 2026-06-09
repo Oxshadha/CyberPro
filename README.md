@@ -4,11 +4,13 @@ CyberPro is an advanced **Expert System** built for Security Operations Center (
 
 ## 🚀 Key Features
 
-* **Backward Chaining Inference Engine:** Built purely in SWI-Prolog, the system deduces 9 critical cyber threat scenarios by logically validating symptoms against a known rulebase.
-* **Dynamic Fact Database:** Uses Prolog's `assertz` meta-predicate to dynamically build state in memory as the user interacts with the system, minimizing redundant questions.
+* **Focused Prolog Consultation:** The selected primary observation is mapped to the most relevant threat first, so a database symptom asks SQL-related follow-up questions instead of starting from DDoS.
+* **Weighted Evidence Rules:** Each threat uses 4 indicators with evidence weights. A result requires at least 3 confirmed indicators and at least 60% confidence.
+* **Calculated Risk Score:** Prolog calculates confidence and a 1-10 risk score from confirmed evidence and threat impact.
+* **Dynamic Fact Database:** Uses Prolog's `assertz` and `retractall` predicates to dynamically build state in memory as the user interacts with the system.
 * **Industrial Glassmorphism UI:** A premium, dark-mode "Graphite/Charcoal" dashboard built with HTML, CSS Flexbox/Grid, and Lucide SVG icons.
 * **Transparent Execution:** Features a live terminal emulator that streams the raw `swipl` CLI commands and responses directly to the user to prove logical execution.
-* **Mermaid.js Visual Tracing:** Every diagnosis automatically generates a flowchart showing the exact Facts → Rules → Conclusion logic path that Prolog took.
+* **Actual Prolog Trace Output:** Prolog outputs the confirmed and rejected evidence facts used in the final assessment; the UI renders those facts as a Mermaid.js flowchart.
 
 ## 🧠 The 9 Threat Knowledge Base
 
@@ -53,7 +55,8 @@ You must have **SWI-Prolog** and **Node.js** installed on your machine.
 
 ## 📁 Repository Structure
 
-* `cyber_pro.pl` - The core Prolog Expert System containing rules, facts, risk scores, and mitigations.
-* `chat-ui/server.js` - The Node.js API that bridges the web frontend via `child_process` to the `swipl` binary.
+* `cyber_pro.pl` - The core Prolog Expert System containing threat profiles, questions, explanations, actions, calculated scoring, and trace output.
+* `test_cyber_pro.pl` - Prolog regression tests for threat focus, scoring, thresholds, and trace output.
+* `chat-ui/server.js` - The Node.js API that bridges the web frontend via `child_process` to the `swipl` binary and formats Prolog output for the UI.
 * `chat-ui/public/` - The frontend assets (HTML, CSS, JS).
 * `Explore_Cyber_pro.md` - A comprehensive Viva & Demo guide explaining the architecture, Prolog predicates, and expected Q&A.
