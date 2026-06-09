@@ -29,6 +29,18 @@ threat(reconnaissance) :-
     verify(port_scan),
     verify(multiple_failed_logins).
 
+threat(phishing_campaign) :-
+    verify(suspicious_emails_reported),
+    verify(malicious_attachments_downloaded).
+
+threat(cryptojacking_infection) :-
+    verify(high_cpu_usage),
+    verify(unusual_outbound_connections).
+
+threat(cloud_data_breach) :-
+    verify(spike_outbound_traffic),
+    verify(traffic_to_external_cloud).
+
 % --- Module 2: Verification Engine (The Core of the Expert System) ---
 % This module checks if we already know the answer. If not, it halts
 % execution and asks the Node.js API to ask the user.
@@ -53,6 +65,9 @@ mitigation(sql_injection, 'Patch database input validation and run WAF.').
 mitigation(ransomware, 'Disconnect infected machines, do not pay ransom, restore from backup.').
 mitigation(insider_threat, 'Revoke user credentials immediately and audit logs.').
 mitigation(reconnaissance, 'Block IP at firewall and monitor closely.').
+mitigation(phishing_campaign, 'Quarantine affected emails, reset compromised credentials, and initiate security awareness training.').
+mitigation(cryptojacking_infection, 'Isolate affected servers, kill unknown mining processes, and block mining pool IPs at the firewall.').
+mitigation(cloud_data_breach, 'Revoke compromised cloud API keys immediately and block outbound traffic to unauthorized storage providers.').
 
 % Risk Scoring
 threat_score(ddos, 8).
@@ -60,6 +75,9 @@ threat_score(sql_injection, 9).
 threat_score(ransomware, 10).
 threat_score(insider_threat, 9).
 threat_score(reconnaissance, 3).
+threat_score(phishing_campaign, 7).
+threat_score(cryptojacking_infection, 6).
+threat_score(cloud_data_breach, 10).
 
 
 % --- Module 4: Explanations (Simulating RAG with Prolog Facts) ---
@@ -68,6 +86,9 @@ explanation(sql_injection, 'SQL Injection is a code injection technique that mig
 explanation(ransomware, 'Ransomware is malicious software designed to block access to a computer system until a sum of money is paid. The combination of encrypted files and a ransom note is the definitive signature of this threat.').
 explanation(insider_threat, 'An insider threat is a malicious threat to an organization that comes from people within the organization. Unusual login times combined with data exfiltration suggests a compromised or rogue employee account.').
 explanation(reconnaissance, 'Reconnaissance is the active or passive gathering of information about a target network. A port scan coupled with multiple failed logins indicates an attacker is probing your defenses for vulnerabilities.').
+explanation(phishing_campaign, 'Phishing is a social engineering attack where attackers deceive users into revealing sensitive information or installing malware. Multiple reports of suspicious emails followed by malicious attachment downloads confirms an active campaign.').
+explanation(cryptojacking_infection, 'Cryptojacking is the unauthorized use of organizational computing resources to mine cryptocurrency. Servers running at 100% CPU combined with outbound connections to unknown IP addresses strongly indicates a mining infection.').
+explanation(cloud_data_breach, 'A cloud data breach involves the unauthorized transfer of sensitive data to external environments. A sudden spike in outbound traffic directed specifically to external cloud storage providers suggests active data exfiltration.').
 
 % --- Module 5: API Entry Point ---
 % Helper: Check if an item is NOT in a list

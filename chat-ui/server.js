@@ -29,7 +29,13 @@ const QUESTION_MAP = {
     'unusual_login_times': 'Are users logging in at unusual hours (e.g., 3 AM)?',
     'data_exfiltration': 'Is there evidence of large amounts of data leaving the network?',
     'port_scan': 'Is your firewall blocking repeated connection attempts to various ports?',
-    'multiple_failed_logins': 'Are you seeing a high number of failed login attempts?'
+    'multiple_failed_logins': 'Are you seeing a high number of failed login attempts?',
+    'suspicious_emails_reported': 'Are multiple users reporting suspicious emails?',
+    'malicious_attachments_downloaded': 'Are users clicking links and downloading unexpected attachments?',
+    'high_cpu_usage': 'Are your servers running at 100% CPU usage constantly?',
+    'unusual_outbound_connections': 'Are the servers making strange outbound connections to unknown IPs or mining pools?',
+    'spike_outbound_traffic': 'Is there a sudden massive spike in outbound network traffic?',
+    'traffic_to_external_cloud': 'Is the traffic directed towards external cloud storage providers (e.g., Mega, AWS S3)?'
 };
 
 app.post('/api/chat', (req, res) => {
@@ -129,6 +135,15 @@ app.post('/api/chat', (req, res) => {
             } else if (threat === 'reconnaissance') {
                 richMitigation = `1. <span style="color: #10b981;">**Correlate IP Addresses:**</span> Check firewall logs to identify the source IP addresses conducting the port scans and failed logins.\n2. <span style="color: #10b981;">**Block Source IPs:**</span> Add the offending IP addresses or subnets to the firewall's strict drop list.\n3. <span style="color: #10b981;">**Review External Footprint:**</span> Ensure no unnecessary ports (like RDP/3389 or SSH/22) are exposed to the public internet.\n\n<br>\n<span style="color: #ef4444;"><b>What NOT to do:</b></span> Do NOT ignore these early warning signs; reconnaissance is almost always followed by a targeted exploit attempt.`;
                 chartRules = `  f1["FACT: known(yes, port_scan)"] --> r1["RULE: verify(port_scan)"]\n  r1 --> c{"CONCLUSION: threat(reconnaissance)"}\n  f2["FACT: known(yes, multiple_failed_logins)"] --> r2["RULE: verify(multiple_failed_logins)"]\n  r2 --> c`;
+            } else if (threat === 'phishing_campaign') {
+                richMitigation = `1. <span style="color: #10b981;">**Quarantine Emails:**</span> Immediately search for and quarantine similar emails across all user inboxes using your email gateway.\n2. <span style="color: #10b981;">**Reset Credentials:**</span> Force a password reset for all users who clicked the malicious links.\n3. <span style="color: #10b981;">**Isolate Endpoints:**</span> Disconnect the computers of users who downloaded attachments to prevent lateral movement.\n\n<br>\n<span style="color: #ef4444;"><b>What NOT to do:</b></span> Do NOT forward the suspicious email to the entire company as a warning without stripping the malicious links first.`;
+                chartRules = `  f1["FACT: known(yes, suspicious_emails_reported)"] --> r1["RULE: verify(suspicious_emails_reported)"]\n  r1 --> c{"CONCLUSION: threat(phishing_campaign)"}\n  f2["FACT: known(yes, malicious_attachments_downloaded)"] --> r2["RULE: verify(malicious_attachments_downloaded)"]\n  r2 --> c`;
+            } else if (threat === 'cryptojacking_infection') {
+                richMitigation = `1. <span style="color: #10b981;">**Identify Rogue Processes:**</span> Log into the affected servers and identify the specific processes consuming 100% CPU.\n2. <span style="color: #10b981;">**Block Mining Pools:**</span> Update your firewall to drop all connections to the known mining pool IPs identified in the logs.\n3. <span style="color: #10b981;">**Kill & Remove:**</span> Terminate the rogue processes and remove the malicious binaries from the system.\n\n<br>\n<span style="color: #ef4444;"><b>What NOT to do:</b></span> Do NOT just reboot the server; the cryptominer likely has persistence mechanisms and will restart automatically.`;
+                chartRules = `  f1["FACT: known(yes, high_cpu_usage)"] --> r1["RULE: verify(high_cpu_usage)"]\n  r1 --> c{"CONCLUSION: threat(cryptojacking_infection)"}\n  f2["FACT: known(yes, unusual_outbound_connections)"] --> r2["RULE: verify(unusual_outbound_connections)"]\n  r2 --> c`;
+            } else if (threat === 'cloud_data_breach') {
+                richMitigation = `1. <span style="color: #10b981;">**Block Outbound Destinations:**</span> Immediately null-route the IP addresses of the external cloud storage providers receiving the data.\n2. <span style="color: #10b981;">**Revoke API Keys:**</span> Rotate all cloud infrastructure API keys and service account credentials that might be compromised.\n3. <span style="color: #10b981;">**Identify Data Scope:**</span> Audit the access logs to determine exactly which database tables or buckets were accessed.\n\n<br>\n<span style="color: #ef4444;"><b>What NOT to do:</b></span> Do NOT destroy the compromised server instances; isolate them so forensic analysts can determine how the breach occurred.`;
+                chartRules = `  f1["FACT: known(yes, spike_outbound_traffic)"] --> r1["RULE: verify(spike_outbound_traffic)"]\n  r1 --> c{"CONCLUSION: threat(cloud_data_breach)"}\n  f2["FACT: known(yes, traffic_to_external_cloud)"] --> r2["RULE: verify(traffic_to_external_cloud)"]\n  r2 --> c`;
             }
 
             const chartHtml = chartRules ? `\n\n### 🔄 Inference Trace Diagram\n\`\`\`mermaid\nflowchart LR\n${chartRules}\n\`\`\`` : '';
