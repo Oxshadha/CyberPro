@@ -10,133 +10,162 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
-// The known valid events mapped exactly to Prolog KB
-const VALID_EVENTS = [
-    'port_scan',
-    'sql_injection_attempt',
-    'suspicious_login',
-    'malware_signature',
-    'data_exfiltration',
-    'privilege_escalation',
-    'unauthorized_access',
-    'service_unavailable',
-    'high_network_traffic'
-];
+// --- Chat Session State ---
+// For a university project, we use a simple global in-memory session.
+let currentSession = {
+    knownFacts: [] // Stores objects like { yesNo: 'yes', symptom: 'port_scan' }
+};
+let isAsking = false;
+let currentQuestion = null;
 
-// Map natural phrases to Prolog events
+// --- Natural Language Mapping ---
 const EVENT_MAP = {
     'server is down': 'service_unavailable',
     'unavailable': 'service_unavailable',
     'offline': 'service_unavailable',
     'high traffic': 'high_network_traffic',
     'ddos': 'high_network_traffic',
-    'port scan': 'port_scan',
-    'sql injection': 'sql_injection_attempt',
-    'suspicious login': 'suspicious_login',
-    'malware': 'malware_signature',
+    'database error': 'database_errors',
+    'sql error': 'database_errors',
+    'unauthorized': 'unauthorized_access',
+    'breach': 'unauthorized_access',
+    'encrypted': 'files_encrypted',
+    'ransom': 'ransom_note',
+    'weird time': 'unusual_login_times',
     'exfiltration': 'data_exfiltration',
-    'privilege escalation': 'privilege_escalation',
-    'unauthorized access': 'unauthorized_access',
-    'breach': 'unauthorized_access'
+    'port scan': 'port_scan',
+    'failed login': 'multiple_failed_logins'
+};
+
+const QUESTION_MAP = {
+    'service_unavailable': 'Are you experiencing service unavailability (e.g., website offline)?',
+    'high_network_traffic': 'Are you noticing an unusual spike in incoming network traffic?',
+    'database_errors': 'Are your applications throwing SQL syntax or database connection errors?',
+    'unauthorized_access': 'Have you detected any unauthorized access to restricted systems?',
+    'files_encrypted': 'Are your files unexpectedly encrypted or inaccessible?',
+    'ransom_note': 'Have you found any ransom notes or payment demands?',
+    'unusual_login_times': 'Are users logging in at unusual hours (e.g., 3 AM)?',
+    'data_exfiltration': 'Is there evidence of large amounts of data leaving the network?',
+    'port_scan': 'Is your firewall blocking repeated connection attempts to various ports?',
+    'multiple_failed_logins': 'Are you seeing a high number of failed login attempts?'
 };
 
 app.post('/api/chat', (req, res) => {
     const userMessage = req.body.message.toLowerCase();
-    
-    // 1. Extract keywords
-    let detectedEvents = new Set();
-    
-    // Check mapping
-    for (const [phrase, event] of Object.entries(EVENT_MAP)) {
-        if (userMessage.includes(phrase)) {
-            detectedEvents.add(event);
-        }
-    }
-    // Check direct event matches
-    for (const event of VALID_EVENTS) {
-        if (userMessage.includes(event) || userMessage.includes(event.replace(/_/g, ' '))) {
-            detectedEvents.add(event);
-        }
-    }
-    
-    detectedEvents = Array.from(detectedEvents);
 
-    if (detectedEvents.length === 0) {
-        return res.json({
-            reply: "I didn't detect any specific actionable security events in your message. Please provide more details (e.g., 'My server is down' or 'We noticed a port scan')."
-        });
+    // 1. Handle Reset
+    if (userMessage.includes('reset') || userMessage.includes('start over')) {
+        currentSession.knownFacts = [];
+        isAsking = false;
+        currentQuestion = null;
+        return res.json({ reply: 'Session reset. I am ready. What symptoms are you experiencing?' });
     }
 
-    // 2. Build the Prolog query
-    // We will clear alerts, add the detected ones, and query primary_threat, calculate_risk, and mitigation.
-    
-    const addStatements = detectedEvents.map(e => `add_alert(${e})`).join(', ');
-    
-    // Construct the query string.
+    // 2. Handle Yes/No Answers
+    if (isAsking) {
+        if (userMessage.includes('yes') || userMessage.includes('yep') || userMessage.includes('yeah')) {
+            currentSession.knownFacts.push({ yesNo: 'yes', symptom: currentQuestion });
+        } else if (userMessage.includes('no') || userMessage.includes('nope') || userMessage.includes('nah')) {
+            currentSession.knownFacts.push({ yesNo: 'no', symptom: currentQuestion });
+        } else {
+            return res.json({ reply: `Please answer **yes** or **no** to the question:\n\n*${QUESTION_MAP[currentQuestion]}*` });
+        }
+        
+        isAsking = false;
+        currentQuestion = null;
+    } 
+    // 3. Handle Initial Symptoms
+    else {
+        let foundAny = false;
+        for (const [phrase, event] of Object.entries(EVENT_MAP)) {
+            if (userMessage.includes(phrase)) {
+                // Check if we already know this fact
+                if (!currentSession.knownFacts.find(f => f.symptom === event)) {
+                    currentSession.knownFacts.push({ yesNo: 'yes', symptom: event });
+                    foundAny = true;
+                }
+            }
+        }
+        
+        if (!foundAny && currentSession.knownFacts.length === 0) {
+            return res.json({
+                reply: "I didn't detect any specific security events. Please describe what you are seeing (e.g., 'My server is down' or 'We noticed a port scan')."
+            });
+        }
+    }
+
+    // 4. Build the Prolog query with current state
+    let assertStatements = currentSession.knownFacts.map(f => `assert_fact(${f.yesNo}, ${f.symptom})`).join(', ');
+    if (!assertStatements) assertStatements = 'true';
+
     const query = `
-        clear_alerts,
-        ${addStatements},
-        ( primary_threat(Threat) -> 
-            (
-                threat(Threat, Level),
-                mitigation(Threat, Mit),
-                get_all_alerts(Alerts),
-                calculate_risk(Alerts, Score),
-                writeln('THREAT='), writeln(Threat),
-                writeln('LEVEL='), writeln(Level),
-                writeln('SCORE='), writeln(Score),
-                writeln('MITIGATION='), writeln(Mit)
-            )
-        ; 
-            writeln('THREAT=none')
-        ).
+        reset_session,
+        ${assertStatements},
+        api_diagnose.
     `;
 
-    // 3. Execute Prolog securely via child process
-    // Add SWI-Prolog Mac App to PATH just in case it's not globally installed
+    // 5. Execute Prolog securely
     const swiplCommand = `PATH=$PATH:/Applications/SWI-Prolog.app/Contents/MacOS swipl -s ../cyber_pro.pl -g "${query.trim().replace(/\n/g, ' ')}" -t halt`;
 
     exec(swiplCommand, (error, stdout, stderr) => {
         if (error) {
             console.error(`exec error: ${error}`);
-            // Provide a fallback response if SWI-Prolog is not installed locally
             if(error.message.includes("swipl: command not found") || error.code === 127) {
-                return res.json({ reply: "⚠️ **SWI-Prolog is not installed or not in PATH.** Please make sure the SWI-Prolog App is in your /Applications folder, or install it via terminal." });
+                return res.json({ reply: "⚠️ **SWI-Prolog is not installed or not in PATH.**" });
             }
             return res.status(500).json({ reply: "Error communicating with the Prolog inference engine." });
         }
         
-        // 4. Parse output
+        // 6. Parse Prolog's Stateful Output
         const output = stdout.trim();
-        if (output.includes('THREAT=none') || !output) {
-            return res.json({
-                reply: `I recorded the events: **${detectedEvents.join(', ')}**. However, based on the current rules, this does not constitute a critical attack pattern yet. Monitor the situation.`
-            });
-        }
-
-        // Extracting values
-        let threat = '', level = '', score = '', mitigation = '';
         const lines = output.split('\n').map(l => l.trim());
+        
+        let resultType = '';
+        let symptom = '', threat = '', score = '', mitigation = '';
+
         for (let i = 0; i < lines.length; i++) {
-            if (lines[i] === 'THREAT=') threat = lines[i+1];
-            if (lines[i] === 'LEVEL=') level = lines[i+1];
-            if (lines[i] === 'SCORE=') score = lines[i+1];
-            if (lines[i] === 'MITIGATION=') mitigation = lines[i+1];
+            if (lines[i] === 'RESULT=ask') resultType = 'ask';
+            if (lines[i] === 'RESULT=found') resultType = 'found';
+            if (lines[i] === 'RESULT=none') resultType = 'none';
+
+            if (lines[i].startsWith('SYMPTOM=')) symptom = lines[i].split('=')[1];
+            if (lines[i].startsWith('THREAT=')) threat = lines[i].split('=')[1];
+            if (lines[i].startsWith('SCORE=')) score = lines[i].split('=')[1];
+            if (lines[i].startsWith('MITIGATION=')) mitigation = lines[i].split('=')[1];
         }
 
-        // 5. Format friendly response
-        const formattedThreat = threat.replace(/_/g, ' ').toUpperCase();
-        
-        const friendlyReply = `### 🚨 ALERT: ${formattedThreat} DETECTED
-Based on your report of **${detectedEvents.join(', ').replace(/_/g, ' ')}**, my inference engine has diagnosed a **${formattedThreat}**.
+        // 7. Decide next action based on Prolog's instruction
+        if (resultType === 'ask') {
+            isAsking = true;
+            currentQuestion = symptom;
+            const humanQuestion = QUESTION_MAP[symptom] || `Are you experiencing ${symptom.replace(/_/g, ' ')}?`;
+            return res.json({ reply: `Hmm, I need more information to confirm a diagnosis.\n\n**${humanQuestion}** (yes/no)` });
+        } 
+        else if (resultType === 'found') {
+            const formattedThreat = threat.replace(/_/g, ' ').toUpperCase();
+            
+            // Auto-reset session after finding a threat so they can start over
+            currentSession.knownFacts = [];
+            isAsking = false;
+            
+            return res.json({ reply: `### 🚨 EXPERT DIAGNOSIS: ${formattedThreat} DETECTED
+Based on our consultation, my inference engine has definitively diagnosed a **${formattedThreat}**.
 
-**Severity Level:** ${level.toUpperCase()}
-**Calculated Risk Score:** ${score}
+**Calculated Risk Score:** ${score}/10
 
 ### 🛡️ Immediate Actions Required:
-${mitigation}`;
+${mitigation}
 
-        res.json({ reply: friendlyReply });
+*(Session reset. You may report new symptoms if needed).*` });
+        } 
+        else {
+            // Auto-reset
+            currentSession.knownFacts = [];
+            isAsking = false;
+            return res.json({
+                reply: `I have analyzed all available symptoms and could not definitively prove a known critical attack pattern (like DDoS, SQL Injection, Ransomware, etc.). \n\nPlease continue monitoring the network. *(Session reset).*`
+            });
+        }
     });
 });
 
