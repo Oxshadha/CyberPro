@@ -18,7 +18,7 @@
 
 body {
     font-family: 'Inter', sans-serif;
-    background-color: var(--bg-color);
+    background: radial-gradient(circle at center top, #1e293b 0%, #0f172a 100%);
     color: var(--text-primary);
     display: flex;
     flex-direction: column;
@@ -41,13 +41,12 @@ body {
     gap: 12px;
 }
 .logo-icon {
-    width: 24px;
-    height: 24px;
-    background: linear-gradient(135deg, #3b82f6, #10b981);
-    border-radius: 6px;
+    width: 32px;
+    height: 32px;
+    color: var(--accent-color);
 }
 .logo h1 {
-    font-size: 1.2rem;
+    font-size: 1.4rem;
     font-weight: 600;
 }
 
@@ -65,6 +64,13 @@ body {
     cursor: pointer;
     font-family: 'Inter', sans-serif;
     transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.outline-btn i {
+    width: 16px;
+    height: 16px;
 }
 .outline-btn:hover {
     background: rgba(255,255,255,0.05);
@@ -89,6 +95,7 @@ body {
 .wizard-screen {
     width: 100%;
     max-width: 800px;
+    margin: auto;
     animation: fadeIn 0.3s ease-in-out;
 }
 .hidden {
@@ -114,23 +121,35 @@ h2 {
 }
 
 .symptom-card {
-    background-color: var(--panel-bg);
-    border: 1px solid var(--border-color);
+    background: rgba(30, 41, 59, 0.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: 12px;
-    padding: 20px;
+    padding: 24px;
     text-align: left;
     cursor: pointer;
     color: var(--text-primary);
-    transition: all 0.2s;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 .symptom-card:hover {
-    border-color: var(--accent-color);
-    background-color: rgba(59, 130, 246, 0.05);
-    transform: translateY(-2px);
+    border-color: rgba(59, 130, 246, 0.5);
+    background: rgba(30, 41, 59, 0.8);
+    transform: translateY(-4px);
+    box-shadow: 0 10px 20px -5px rgba(59, 130, 246, 0.2), 0 0 15px rgba(59, 130, 246, 0.15);
 }
 .symptom-card h3 {
     font-size: 1.1rem;
     margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.symptom-card h3 i {
+    width: 20px;
+    height: 20px;
+    color: var(--accent-color);
 }
 .symptom-card p {
     font-size: 0.9rem;
@@ -140,11 +159,14 @@ h2 {
 
 /* ASK CARD */
 .ask-card {
-    background-color: var(--panel-bg);
-    border: 1px solid var(--border-color);
+    background: rgba(30, 41, 59, 0.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: 12px;
     padding: 40px;
     text-align: center;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 .prompt-text {
     font-size: 1.4rem;
@@ -173,11 +195,14 @@ h2 {
 
 /* RESULT SCREEN */
 .result-content {
-    background-color: var(--panel-bg);
-    border: 1px solid var(--border-color);
+    background: rgba(30, 41, 59, 0.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: 12px;
     padding: 30px;
     line-height: 1.6;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 .result-content h3 { margin-top: 20px; margin-bottom: 10px; color: var(--text-primary); }
 .result-content p { margin-bottom: 15px; }

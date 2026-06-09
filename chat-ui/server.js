@@ -35,7 +35,9 @@ const QUESTION_MAP = {
     'high_cpu_usage': 'Are your servers running at 100% CPU usage constantly?',
     'unusual_outbound_connections': 'Are the servers making strange outbound connections to unknown IPs or mining pools?',
     'spike_outbound_traffic': 'Is there a sudden massive spike in outbound network traffic?',
-    'traffic_to_external_cloud': 'Is the traffic directed towards external cloud storage providers (e.g., Mega, AWS S3)?'
+    'traffic_to_external_cloud': 'Is the traffic directed towards external cloud storage providers (e.g., Mega, AWS S3)?',
+    'homepage_changed': 'Has the public website homepage been altered with unauthorized content?',
+    'admin_login_bypass': 'Are there recent successful logins from unknown IPs to the CMS admin dashboard?'
 };
 
 app.post('/api/chat', (req, res) => {
@@ -144,6 +146,9 @@ app.post('/api/chat', (req, res) => {
             } else if (threat === 'cloud_data_breach') {
                 richMitigation = `1. <span style="color: #10b981;">**Block Outbound Destinations:**</span> Immediately null-route the IP addresses of the external cloud storage providers receiving the data.\n2. <span style="color: #10b981;">**Revoke API Keys:**</span> Rotate all cloud infrastructure API keys and service account credentials that might be compromised.\n3. <span style="color: #10b981;">**Identify Data Scope:**</span> Audit the access logs to determine exactly which database tables or buckets were accessed.\n\n<br>\n<span style="color: #ef4444;"><b>What NOT to do:</b></span> Do NOT destroy the compromised server instances; isolate them so forensic analysts can determine how the breach occurred.`;
                 chartRules = `  f1["FACT: known(yes, spike_outbound_traffic)"] --> r1["RULE: verify(spike_outbound_traffic)"]\n  r1 --> c{"CONCLUSION: threat(cloud_data_breach)"}\n  f2["FACT: known(yes, traffic_to_external_cloud)"] --> r2["RULE: verify(traffic_to_external_cloud)"]\n  r2 --> c`;
+            } else if (threat === 'website_defacement') {
+                richMitigation = `1. <span style="color: #10b981;">**Take Offline:**</span> Temporarily route the public domain to a static maintenance page.\n2. <span style="color: #10b981;">**Restore Backup:**</span> Restore the CMS codebase and database from a known clean backup.\n3. <span style="color: #10b981;">**Audit Access:**</span> Review CMS access logs to find how the attacker bypassed authentication and patch the vulnerability.\n\n<br>\n<span style="color: #ef4444;"><b>What NOT to do:</b></span> Do NOT simply delete the hacker's message and leave the site online; the backdoor they used is still active.`;
+                chartRules = `  f1["FACT: known(yes, homepage_changed)"] --> r1["RULE: verify(homepage_changed)"]\n  r1 --> c{"CONCLUSION: threat(website_defacement)"}\n  f2["FACT: known(yes, admin_login_bypass)"] --> r2["RULE: verify(admin_login_bypass)"]\n  r2 --> c`;
             }
 
             const chartHtml = chartRules ? `\n\n### 🔄 Inference Trace Diagram\n\`\`\`mermaid\nflowchart LR\n${chartRules}\n\`\`\`` : '';

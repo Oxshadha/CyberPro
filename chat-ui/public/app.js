@@ -107,8 +107,12 @@ document.addEventListener('DOMContentLoaded', () => {
         appendTerminal('sys', 'Initializing inference engine session...\nReady.');
         sendAction('reset');
         showScreen(screenInitial);
+        lucide.createIcons(); // Re-initialize icons if DOM changes
     });
 
     // Initial greeting in terminal
     appendTerminal('sys', 'CyberPro Expert System Loaded. Awaiting facts...');
+
+    // Initialize Lucide Icons
+    lucide.createIcons();
 });

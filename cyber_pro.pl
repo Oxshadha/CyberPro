@@ -41,6 +41,10 @@ threat(cloud_data_breach) :-
     verify(spike_outbound_traffic),
     verify(traffic_to_external_cloud).
 
+threat(website_defacement) :-
+    verify(homepage_changed),
+    verify(admin_login_bypass).
+
 % --- Module 2: Verification Engine (The Core of the Expert System) ---
 % This module checks if we already know the answer. If not, it halts
 % execution and asks the Node.js API to ask the user.
@@ -68,6 +72,7 @@ mitigation(reconnaissance, 'Block IP at firewall and monitor closely.').
 mitigation(phishing_campaign, 'Quarantine affected emails, reset compromised credentials, and initiate security awareness training.').
 mitigation(cryptojacking_infection, 'Isolate affected servers, kill unknown mining processes, and block mining pool IPs at the firewall.').
 mitigation(cloud_data_breach, 'Revoke compromised cloud API keys immediately and block outbound traffic to unauthorized storage providers.').
+mitigation(website_defacement, 'Take the public site offline, restore the homepage from a clean backup, and audit CMS admin access logs.').
 
 % Risk Scoring
 threat_score(ddos, 8).
@@ -78,6 +83,7 @@ threat_score(reconnaissance, 3).
 threat_score(phishing_campaign, 7).
 threat_score(cryptojacking_infection, 6).
 threat_score(cloud_data_breach, 10).
+threat_score(website_defacement, 5).
 
 
 % --- Module 4: Explanations (Simulating RAG with Prolog Facts) ---
@@ -89,6 +95,7 @@ explanation(reconnaissance, 'Reconnaissance is the active or passive gathering o
 explanation(phishing_campaign, 'Phishing is a social engineering attack where attackers deceive users into revealing sensitive information or installing malware. Multiple reports of suspicious emails followed by malicious attachment downloads confirms an active campaign.').
 explanation(cryptojacking_infection, 'Cryptojacking is the unauthorized use of organizational computing resources to mine cryptocurrency. Servers running at 100% CPU combined with outbound connections to unknown IP addresses strongly indicates a mining infection.').
 explanation(cloud_data_breach, 'A cloud data breach involves the unauthorized transfer of sensitive data to external environments. A sudden spike in outbound traffic directed specifically to external cloud storage providers suggests active data exfiltration.').
+explanation(website_defacement, 'Website defacement is an attack on a website that changes the visual appearance of the site or a webpage. The combination of an unauthorized homepage change and a bypassed admin login confirms a CMS compromise.').
 
 % --- Module 5: API Entry Point ---
 % Helper: Check if an item is NOT in a list
