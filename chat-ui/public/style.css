@@ -198,4 +198,4 @@ body {
 
 /* Markdown styling inside AI messages */
 .ai-message .message-content p { margin-bottom: 10px; }
-.ai-message .message-content ul { margin-left: 20px; margin-bottom: 10px; }
+.ai-message .message-content ul, .ai-message .message-content ol { margin-left: 20px; margin-bottom: 10px; }

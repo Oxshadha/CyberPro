@@ -70,26 +70,25 @@ app.post('/api/chat', (req, res) => {
             if (expLine) {
                 const text = expLine.split('=')[1];
                 
-                // Build the Mermaid Logic Chart dynamically for the Explanation section
                 const threat = currentSession.lastThreat;
                 let chartRules = '';
-                if (threat === 'ddos') {
-                    chartRules = `[FACT] known(yes, service_unavailable)  ───> [RULE] verify(service_unavailable) ────┐\n                                                                                   │\n                                                                                   ├───> [CONCLUSION] threat(ddos)\n                                                                                   │\n[FACT] known(yes, high_network_traffic) ───> [RULE] verify(high_network_traffic) ──┘`;
-                } else if (threat === 'sql_injection') {
-                    chartRules = `[FACT] known(yes, database_errors)      ───> [RULE] verify(database_errors) ────────┐\n                                                                                   │\n                                                                                   ├───> [CONCLUSION] threat(sql_injection)\n                                                                                   │\n[FACT] known(yes, unauthorized_access)  ───> [RULE] verify(unauthorized_access) ────┘`;
-                } else if (threat === 'ransomware') {
-                    chartRules = `[FACT] known(yes, files_encrypted)      ───> [RULE] verify(files_encrypted) ────────┐\n                                                                                   │\n                                                                                   ├───> [CONCLUSION] threat(ransomware)\n                                                                                   │\n[FACT] known(yes, ransom_note)          ───> [RULE] verify(ransom_note) ────────────┘`;
-                } else if (threat === 'insider_threat') {
-                    chartRules = `[FACT] known(yes, unusual_login_times)  ───> [RULE] verify(unusual_login_times) ────┐\n                                                                                   │\n                                                                                   ├───> [CONCLUSION] threat(insider_threat)\n                                                                                   │\n[FACT] known(yes, data_exfiltration)    ───> [RULE] verify(data_exfiltration) ──────┘`;
-                } else if (threat === 'reconnaissance') {
-                    chartRules = `[FACT] known(yes, port_scan)            ───> [RULE] verify(port_scan) ──────────────┐\n                                                                                   │\n                                                                                   ├───> [CONCLUSION] threat(reconnaissance)\n                                                                                   │\n[FACT] known(yes, multiple_failed_logins)──> [RULE] verify(multiple_failed_logins) ─┘`;
-                }
-
-                const chartHtml = chartRules ? `\n\n### 🔄 Inference Flow\n\`\`\`text\n${chartRules}\n\`\`\`` : '';
-
-                return res.json({ reply: `### 📖 Detailed Explanation\n\n${text}${chartHtml}\n\n*(Use 'New Conversation' or type a new symptom to start over).*` });
+            if (threat === 'ddos') {
+                chartRules = `[FACT] known(yes, service_unavailable)  ───> [RULE] verify(service_unavailable) ────┐\n                                                                                   │\n                                                                                   ├───> [CONCLUSION] threat(ddos)\n                                                                                   │\n[FACT] known(yes, high_network_traffic) ───> [RULE] verify(high_network_traffic) ──┘`;
+            } else if (threat === 'sql_injection') {
+                chartRules = `[FACT] known(yes, database_errors)      ───> [RULE] verify(database_errors) ────────┐\n                                                                                   │\n                                                                                   ├───> [CONCLUSION] threat(sql_injection)\n                                                                                   │\n[FACT] known(yes, unauthorized_access)  ───> [RULE] verify(unauthorized_access) ────┘`;
+            } else if (threat === 'ransomware') {
+                chartRules = `[FACT] known(yes, files_encrypted)      ───> [RULE] verify(files_encrypted) ────────┐\n                                                                                   │\n                                                                                   ├───> [CONCLUSION] threat(ransomware)\n                                                                                   │\n[FACT] known(yes, ransom_note)          ───> [RULE] verify(ransom_note) ────────────┘`;
+            } else if (threat === 'insider_threat') {
+                chartRules = `[FACT] known(yes, unusual_login_times)  ───> [RULE] verify(unusual_login_times) ────┐\n                                                                                   │\n                                                                                   ├───> [CONCLUSION] threat(insider_threat)\n                                                                                   │\n[FACT] known(yes, data_exfiltration)    ───> [RULE] verify(data_exfiltration) ──────┘`;
+            } else if (threat === 'reconnaissance') {
+                chartRules = `[FACT] known(yes, port_scan)            ───> [RULE] verify(port_scan) ──────────────┐\n                                                                                   │\n                                                                                   ├───> [CONCLUSION] threat(reconnaissance)\n                                                                                   │\n[FACT] known(yes, multiple_failed_logins)──> [RULE] verify(multiple_failed_logins) ─┘`;
             }
-            return res.json({ reply: 'Explanation not available.' });
+
+            const chartHtml = chartRules ? `\n\n### 🔄 Inference Flow\n\`\`\`text\n${chartRules}\n\`\`\`` : '';
+
+            return res.json({ reply: `### 📖 Detailed Explanation\n\n${text}${chartHtml}\n\n*(Explanation displayed. Use 'New Conversation' to start over).*` });
+        }
+        return res.json({ reply: 'Explanation not available.' });
         });
         return;
     }
@@ -189,6 +188,19 @@ app.post('/api/chat', (req, res) => {
             const formattedThreat = threat.replace(/_/g, ' ').toUpperCase();
             currentSession.lastThreat = threat;
             
+            let richMitigation = '';
+            if (threat === 'ddos') {
+                richMitigation = `1. <span style="color: #10b981;">**Analyze Traffic Patterns:**</span> Check firewall and router logs for unusual spikes from specific geographic regions or IP ranges.\n2. <span style="color: #10b981;">**Implement Rate Limiting:**</span> Apply immediate rate limiting rules on the edge routers or WAF to drop excessive packets.\n3. <span style="color: #10b981;">**Contact ISP:**</span> Notify your Internet Service Provider to upstream the traffic filtering.\n\n<br>\n<span style="color: #ef4444;"><b>What NOT to do:</b></span> Do NOT restart the servers in a panic, as this does not stop the incoming traffic and only extends downtime.`;
+            } else if (threat === 'sql_injection') {
+                richMitigation = `1. <span style="color: #10b981;">**Review Web Logs:**</span> Check HTTP access logs for unusual URL parameters containing SQL commands.\n2. <span style="color: #10b981;">**Audit Database Logs:**</span> Inspect database transaction logs to identify which tables were accessed or exfiltrated.\n3. <span style="color: #10b981;">**Patch Vulnerable Endpoints:**</span> Identify the exact API endpoint that allowed the injection and apply parameterized queries immediately.\n\n<br>\n<span style="color: #ef4444;"><b>What NOT to do:</b></span> Do NOT leave the vulnerable application online while investigating; take it offline or route it through a strict WAF immediately.`;
+            } else if (threat === 'ransomware') {
+                richMitigation = `1. <span style="color: #10b981;">**Isolate Infected Hosts:**</span> Immediately disconnect the infected machines from the network to prevent lateral movement.\n2. <span style="color: #10b981;">**Identify the Variant:**</span> Check the ransom note for specific email addresses or extensions to identify the ransomware family.\n3. <span style="color: #10b981;">**Secure Backups:**</span> Verify that your offline or immutable backups are safe and have not been compromised.\n\n<br>\n<span style="color: #ef4444;"><b>What NOT to do:</b></span> Do NOT pay the ransom! Paying does not guarantee data recovery and funds criminal organizations.`;
+            } else if (threat === 'insider_threat') {
+                richMitigation = `1. <span style="color: #10b981;">**Audit Account Activity:**</span> Review the compromised user's active directory and VPN logs to see what files they recently accessed.\n2. <span style="color: #10b981;">**Revoke Access:**</span> Immediately suspend the user's accounts, invalidate active sessions, and rotate all shared credentials.\n3. <span style="color: #10b981;">**Check Exfiltration Points:**</span> Inspect DLP logs, USB access logs, and outbound cloud storage traffic to determine what was stolen.\n\n<br>\n<span style="color: #ef4444;"><b>What NOT to do:</b></span> Do NOT alert the suspected user prematurely before securing the logs and evidence, as they may attempt to destroy audit trails.`;
+            } else if (threat === 'reconnaissance') {
+                richMitigation = `1. <span style="color: #10b981;">**Correlate IP Addresses:**</span> Check firewall logs to identify the source IP addresses conducting the port scans and failed logins.\n2. <span style="color: #10b981;">**Block Source IPs:**</span> Add the offending IP addresses or subnets to the firewall's strict drop list.\n3. <span style="color: #10b981;">**Review External Footprint:**</span> Ensure no unnecessary ports (like RDP/3389 or SSH/22) are exposed to the public internet.\n\n<br>\n<span style="color: #ef4444;"><b>What NOT to do:</b></span> Do NOT ignore these early warning signs; reconnaissance is almost always followed by a targeted exploit attempt.`;
+            }
+
             // Auto-reset
             currentSession.knownFacts = [];
             isAsking = false;
@@ -200,10 +212,10 @@ Based on our consultation, my inference engine has definitively diagnosed a **${
 **Calculated Risk Score:** ${score}/10
 
 ### 🛡️ Immediate Actions Required:
-${mitigation}`,
+${richMitigation}`,
                 showButtons: true 
             });
-        } 
+        }
         else {
             currentSession.knownFacts = [];
             currentSession.excludedThreats = [];
