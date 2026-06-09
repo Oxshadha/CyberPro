@@ -102,7 +102,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 showScreen(screenAsk);
             } 
             else if (data.reply) {
-                let htmlContent = marked.parse(data.reply);
+                let htmlContent = data.reply.trim().startsWith('<')
+                    ? data.reply
+                    : marked.parse(data.reply);
                 resultContent.innerHTML = htmlContent;
                 showScreen(screenResult);
                 lucide.createIcons();
@@ -115,6 +117,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         mermaidDiv.textContent = el.textContent;
                         el.parentElement.replaceWith(mermaidDiv);
                     });
+                }
+
+                if (resultContent.querySelector('.mermaid')) {
                     mermaid.run();
                 }
             }

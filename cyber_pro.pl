@@ -162,6 +162,42 @@ action(website_defacement, 1, 'Place the affected site in maintenance mode and p
 action(website_defacement, 2, 'Remove unauthorized files and restore from a verified clean backup.').
 action(website_defacement, 3, 'Reset CMS credentials and patch the access path used by the attacker.').
 
+action_detail(ddos, 1, 'Compare firewall, load balancer, and router logs to identify source ranges, packet types, and request patterns.').
+action_detail(ddos, 2, 'Apply temporary limits at the WAF or edge router, then observe whether availability improves.').
+action_detail(ddos, 3, 'Share traffic samples and timestamps with the provider so filtering can happen upstream.').
+
+action_detail(sql_injection, 1, 'Search access logs for quotes, UNION, SELECT, OR 1=1, encoded payloads, and unusual query strings.').
+action_detail(sql_injection, 2, 'Preserve logs and restrict the vulnerable route while the exact injection point is confirmed.').
+action_detail(sql_injection, 3, 'Use parameterized queries, input validation, and regression testing before reopening the endpoint.').
+
+action_detail(ransomware, 1, 'Disconnect affected machines from the network but keep them powered if evidence must be preserved.').
+action_detail(ransomware, 2, 'Record ransom-note text, file extensions, and affected directories for variant identification.').
+action_detail(ransomware, 3, 'Restore only from backups verified as clean and created before the first encryption activity.').
+
+action_detail(insider_threat, 1, 'Collect account, VPN, DLP, file-access, and cloud-storage logs before making user-facing changes.').
+action_detail(insider_threat, 2, 'Disable the account, revoke tokens, and rotate shared credentials according to incident policy.').
+action_detail(insider_threat, 3, 'List accessed files, transfer destinations, and business impact for the incident-response lead.').
+
+action_detail(reconnaissance, 1, 'Group events by source, destination service, time window, and authentication outcome.').
+action_detail(reconnaissance, 2, 'Block confirmed hostile sources and add rate limits for exposed authentication services.').
+action_detail(reconnaissance, 3, 'Check exposed ports and remove unnecessary public access before exploitation follows.').
+
+action_detail(phishing_campaign, 1, 'Use sender, subject, URL, and attachment indicators to find similar emails across mailboxes.').
+action_detail(phishing_campaign, 2, 'Prioritize users who clicked links or submitted credentials, then revoke active sessions.').
+action_detail(phishing_campaign, 3, 'Inspect endpoints for downloaded payloads, persistence, and lateral movement indicators.').
+
+action_detail(cryptojacking_infection, 1, 'Use process lists, scheduled tasks, and command lines to identify the CPU-heavy process.').
+action_detail(cryptojacking_infection, 2, 'Block mining pool destinations and isolate affected systems from production traffic.').
+action_detail(cryptojacking_infection, 3, 'Remove binaries, startup entries, and the initial access path used to install the miner.').
+
+action_detail(cloud_data_breach, 1, 'Disable exposed keys and privileged sessions, then issue new credentials through a secure process.').
+action_detail(cloud_data_breach, 2, 'Restrict suspicious transfers without deleting instances or audit logs needed for investigation.').
+action_detail(cloud_data_breach, 3, 'Review cloud audit logs for actor, object, bucket, region, and downloaded data volume.').
+
+action_detail(website_defacement, 1, 'Take a copy of web files and logs before redirecting users to a maintenance page.').
+action_detail(website_defacement, 2, 'Restore known-clean files and remove any unknown scripts, web shells, or modified templates.').
+action_detail(website_defacement, 3, 'Reset CMS accounts, patch plugins, and check how the attacker obtained admin access.').
+
 avoid(ddos, 'Do not repeatedly restart the affected servers; that does not stop incoming attack traffic.').
 avoid(sql_injection, 'Do not leave the vulnerable endpoint publicly accessible while investigating it.').
 avoid(ransomware, 'Do not erase affected systems before evidence and recovery requirements have been assessed.').
@@ -216,6 +252,8 @@ diagnosis_status(_, _, insufficient).
 print_actions(Threat) :-
     action(Threat, Number, Text),
     format('ACTION=~w|~w~n', [Number, Text]),
+    action_detail(Threat, Number, Detail),
+    format('ACTION_DETAIL=~w|~w~n', [Number, Detail]),
     fail.
 print_actions(_).
 

@@ -74,6 +74,7 @@ function isKnownAtom(value) {
 function parseOutput(output) {
     const result = {
         actions: [],
+        actionDetails: {},
         trace: []
     };
 
@@ -87,6 +88,9 @@ function parseOutput(output) {
         if (key === 'ACTION') {
             const [number, text] = value.split('|');
             result.actions.push({ number: Number(number), text });
+        } else if (key === 'ACTION_DETAIL') {
+            const [number, text] = value.split('|');
+            result.actionDetails[Number(number)] = text;
         } else if (key === 'TRACE') {
             const [symptom, answer, weight] = value.split('|');
             result.trace.push({ symptom, answer, weight: Number(weight) });
@@ -104,6 +108,15 @@ function formatName(value) {
 
 function formatEvidence(value) {
     return value.replace(/_/g, ' ');
+}
+
+function escapeHtml(value) {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 
 function buildTraceDiagram(threat, trace) {
@@ -126,53 +139,96 @@ function buildTraceDiagram(threat, trace) {
     return lines.join('\n');
 }
 
+function buildEvidenceRows(trace) {
+    return trace
+        .map(fact => {
+            const answerClass = fact.answer === 'yes' ? 'yes' : 'no';
+            const answerText = fact.answer === 'yes' ? 'Confirmed' : 'Rejected';
+            return `<li>
+  <span class="evidence-status ${answerClass}" title="${answerText}" aria-label="${answerText}"></span>
+  <span>${escapeHtml(formatEvidence(fact.symptom))}</span>
+  <small>${fact.weight}% weight</small>
+</li>`;
+        })
+        .join('\n');
+}
+
 function buildFoundReply(data) {
     const actions = data.actions
         .sort((a, b) => a.number - b.number)
-        .map(action => `${action.number}. **${action.text}**`)
+        .map(action => `<li>
+<details>
+  <summary><span>${action.number}</span>${escapeHtml(action.text)}</summary>
+  <p>${escapeHtml(data.actionDetails[action.number] || 'Review this step with the incident-response owner before execution.')}</p>
+</details>
+</li>`)
         .join('\n');
 
-    return `## Evidence-Supported Assessment: ${formatName(data.threat)}
+    return `<section class="diagnosis-card diagnosis-found">
+<div class="diagnosis-kicker"><i data-lucide="shield-alert"></i> Expert system assessment</div>
+<h2><span>${formatName(data.threat)}</span></h2>
+<p class="diagnosis-summary">${escapeHtml(data.explanation)}</p>
 
-${data.explanation}
+<div class="metric-grid">
+  <div class="metric-card success"><small>Indicators</small><strong>${data.confirmed}/${data.total}</strong></div>
+  <div class="metric-card info"><small>Confidence</small><strong>${data.confidence}%</strong></div>
+  <div class="metric-card danger"><small>Risk</small><strong>${data.risk}/10</strong></div>
+  <div class="metric-card warning"><small>Impact</small><strong>${data.impact}/10</strong></div>
+</div>
 
-**Confirmed indicators:** ${data.confirmed}/${data.total}
+<div class="basis-panel">
+  <h3>Diagnosis basis</h3>
+  <ul class="evidence-list">
+${buildEvidenceRows(data.trace)}
+  </ul>
+</div>
 
-**Evidence confidence:** ${data.confidence}%
-
-**Calculated risk:** ${data.risk}/10
-
-**Threat impact if confirmed:** ${data.impact}/10
-
-### Immediate Actions
+<div class="actions-panel">
+  <h3>Recommended actions</h3>
+  <ol class="action-list">
 ${actions}
+  </ol>
+</div>
 
-**What not to do:** ${data.avoid}
+<div class="avoid-panel"><i data-lucide="triangle-alert"></i><div><strong>What not to do</strong><p>${escapeHtml(data.avoid)}</p></div></div>
 
-### Actual Prolog Inference Trace
-\`\`\`mermaid
+<details class="trace-panel">
+  <summary>Show Prolog inference trace</summary>
+  <div class="mermaid">
 ${buildTraceDiagram(data.threat, data.trace)}
-\`\`\`
-`;
+  </div>
+</details>
+</section>`;
 }
 
 function buildInsufficientReply(data) {
-    return `## Insufficient Evidence: ${formatName(data.threat)}
+    return `<section class="diagnosis-card diagnosis-insufficient">
+<div class="diagnosis-kicker"><i data-lucide="circle-help"></i> Evidence threshold not reached</div>
+<h2><span>INSUFFICIENT EVIDENCE: ${formatName(data.threat)}</span></h2>
+<p class="diagnosis-summary">The consultation completed, but the confirmed evidence did not reach the 60% threshold required for an evidence-supported assessment.</p>
 
-The consultation completed, but the confirmed evidence did not reach the 60% threshold required for an evidence-supported assessment.
+<div class="metric-grid">
+  <div class="metric-card warning"><small>Indicators</small><strong>${data.confirmed}/${data.total}</strong></div>
+  <div class="metric-card info"><small>Confidence</small><strong>${data.confidence}%</strong></div>
+  <div class="metric-card danger"><small>Risk</small><strong>${data.risk}/10</strong></div>
+</div>
 
-**Confirmed indicators:** ${data.confirmed}/${data.total}
+<div class="basis-panel">
+  <h3>Diagnosis basis</h3>
+  <ul class="evidence-list">
+${buildEvidenceRows(data.trace)}
+  </ul>
+</div>
 
-**Evidence confidence:** ${data.confidence}%
+<div class="avoid-panel"><i data-lucide="activity"></i><div><strong>Next step</strong><p>Continue monitoring and collect stronger technical evidence before treating this as a confirmed incident.</p></div></div>
 
-**Calculated current risk:** ${data.risk}/10
-
-### Actual Prolog Evidence Trace
-\`\`\`mermaid
+<details class="trace-panel">
+  <summary>Show Prolog evidence trace</summary>
+  <div class="mermaid">
 ${buildTraceDiagram(data.threat, data.trace)}
-\`\`\`
-
-Continue monitoring and collect stronger technical evidence before treating this as a confirmed incident.`;
+  </div>
+</details>
+</section>`;
 }
 
 app.post('/api/chat', (req, res) => {
