@@ -8,9 +8,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const askPrompt = document.getElementById('ask-prompt');
     const resultContent = document.getElementById('result-content');
     const terminalLog = document.getElementById('terminal-log');
+    const terminalPanel = document.querySelector('.terminal-panel');
     
     // Buttons
     const resetBtn = document.getElementById('reset-btn');
+    const toggleTerminalBtn = document.getElementById('toggle-terminal-btn');
     const btnYes = document.getElementById('btn-yes');
     const btnNo = document.getElementById('btn-no');
     const symptomCards = document.querySelectorAll('.symptom-card');
@@ -54,6 +56,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             // Handle Response
+            if (actionType === 'reset') {
+                // Do not display the reset reply on screen, it's just an internal confirmation
+                return;
+            }
+
             if (data.isAsking) {
                 askPrompt.textContent = data.reply.replace(/[\*\_]/g, '');
                 showScreen(screenAsk);
@@ -90,6 +97,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     btnYes.addEventListener('click', () => sendAction('answer', 'yes'));
     btnNo.addEventListener('click', () => sendAction('answer', 'no'));
+
+    toggleTerminalBtn.addEventListener('click', () => {
+        terminalPanel.classList.toggle('hidden');
+    });
 
     resetBtn.addEventListener('click', () => {
         terminalLog.innerHTML = '';
