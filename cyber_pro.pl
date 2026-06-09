@@ -1,208 +1,197 @@
 % ====================================================================
-% CyberPro - Cybersecurity Diagnosis Expert System
+% CyberPro - SOC Alert Triage Expert System
 % ====================================================================
 
-% Module 1 - Knowledge Base
-% ---- STATIC FACTS ----
-symptom_weight(many_failed_logins, 3).
-symptom_weight(account_lockouts, 2).
-symptom_weight(high_network_traffic, 3).
-symptom_weight(service_unavailable, 3).
-symptom_weight(suspicious_email, 2).
-symptom_weight(fake_login_page, 3).
-symptom_weight(encrypted_files, 4).
-symptom_weight(disabled_antivirus, 3).
-symptom_weight(unknown_usb_detected, 2).
-symptom_weight(port_scanning_detected, 3).
+% --- Module 1: Knowledge Base (Data objects & Structures) ---
+% alert_weight(EventName, Weight)
+alert_weight(port_scan, 2).
+alert_weight(sql_injection_attempt, 4).
+alert_weight(suspicious_login, 3).
+alert_weight(malware_signature, 5).
+alert_weight(data_exfiltration, 5).
+alert_weight(privilege_escalation, 4).
+alert_weight(unauthorized_access, 4).
 
-severity(brute_force, medium).
-severity(ddos, high).
-severity(phishing, medium).
-severity(ransomware, critical).
-severity(insider_threat, high).
+% threat(ThreatName, ThreatLevel)
+threat(reconnaissance, low).
+threat(sql_injection, high).
+threat(insider_threat, critical).
+threat(apt_breach, critical).
 
-impact(brute_force, credential_theft).
-impact(ddos, service_disruption).
-impact(phishing, credential_theft).
-impact(ransomware, data_loss).
+% mitigation(ThreatName, Strategy)
+mitigation(reconnaissance, 'Block IP at firewall and monitor.').
+mitigation(sql_injection, 'Patch database input validation and run WAF.').
+mitigation(insider_threat, 'Revoke user credentials immediately and audit logs.').
+mitigation(apt_breach, 'Isolate network segments, initiate incident response.').
 
-recommend(brute_force, 'Enable MFA and block suspicious IPs').
-recommend(ddos, 'Use rate limiting and traffic filtering').
-recommend(phishing, 'Train users and deploy email filtering').
-recommend(ransomware, 'Restore from backup, isolate system').
-recommend(insider_threat, 'Review access logs and revoke privileges').
 
-% Module 2 - Symptom Input as Lists
-:- dynamic observed_symptoms/1.
-observed_symptoms([]).          % starts empty
+% --- Module 2: State Management (Dynamic DB: assertz, retract) ---
+:- dynamic active_alert/1.
+active_alert(empty). % dummy start
 
-% Add a symptom to the list using assertz
-add_symptom(S) :-
-    observed_symptoms(Old),
-    ( member(S, Old) ->           % membership check
-        write('Already recorded.'), nl
+% Initialize/clear DB
+clear_alerts :-
+    retractall(active_alert(_)).
+
+% Add alert dynamically
+add_alert(Event) :-
+    assertz(active_alert(Event)).
+
+
+% --- Module 3: List Utilities (Lists, length, membership, concatenation, deleting) ---
+% Get all current alerts into a list using bagof
+get_all_alerts(List) :-
+    bagof(E, active_alert(E), List), !.
+get_all_alerts([]).
+
+% Concatenate two lists (e.g., firewall logs + endpoint logs)
+combine_logs(List1, List2, Combined) :-
+    append(List1, List2, Combined).
+
+% Delete false positives (e.g., ignoring harmless port scans for risk scoring)
+filter_false_positives([], []).
+filter_false_positives(RawList, Filtered) :-
+    delete(RawList, port_scan, Filtered).
+
+% Count items
+count_alerts(List, N) :-
+    length(List, N).
+
+% List Membership
+is_valid_event(Event) :-
+    ValidEvents = [port_scan, sql_injection_attempt, suspicious_login, malware_signature, data_exfiltration, privilege_escalation, unauthorized_access],
+    member(Event, ValidEvents).
+
+
+% --- Module 4: Inference Engine (Rules, Cut, Negation as Failure) ---
+% Check if an event exists in DB
+has_event(Event) :-
+    active_alert(Event).
+
+% Threat definitions
+detect_threat(reconnaissance) :-
+    has_event(port_scan),
+    \+ has_event(blocked_by_firewall). % Negation as failure
+
+detect_threat(sql_injection) :-
+    has_event(sql_injection_attempt),
+    \+ has_event(waf_blocked).
+
+detect_threat(insider_threat) :-
+    has_event(suspicious_login),
+    has_event(data_exfiltration), !. % Cut: definitive match, stop checking alternatives
+
+detect_threat(apt_breach) :-
+    has_event(malware_signature),
+    has_event(privilege_escalation).
+
+detect_threat(apt_breach) :-
+    has_event(unauthorized_access),
+    has_event(data_exfiltration).
+
+% Primary threat identified (stops at first match using cut)
+primary_threat(T) :-
+    detect_threat(T), !.
+
+
+% --- Module 5: Aggregation & Arithmetic (setof, is) ---
+% Get unique detected threats
+unique_threats(Threats) :-
+    setof(T, detect_threat(T), Threats), !.
+unique_threats([]).
+
+% Calculate Risk Score based on event weights (Arithmetic)
+calculate_risk([], 0).
+calculate_risk([Event|Rest], TotalScore) :-
+    ( alert_weight(Event, W) -> Weight = W ; Weight = 0 ),
+    calculate_risk(Rest, SubTotal),
+    TotalScore is SubTotal + Weight. % is/2
+
+
+% --- Module 6: Meta-Programming (=.., functor, arg, call) ---
+% Unpack a structured alert like sensor(firewall, port_scan)
+analyze_structured_alert(StructAlert) :-
+    StructAlert =.. [Functor, Sensor, Event], % =.. (univ)
+    format('Analyzed ~w alert from sensor: ~w. Event: ~w~n', [Functor, Sensor, Event]),
+    % dynamically build a call to check its weight
+    Goal =.. [alert_weight, Event, _Weight],
+    ( call(Goal) -> % call
+        format('Warning: This is a known risky event.~n')
     ;
-        append(Old, [S], New),    % concatenation
-        retract(observed_symptoms(_)),
-        assertz(observed_symptoms(New))
+        format('Notice: Event weight unknown.~n')
     ).
 
-% Check if a symptom is active
-has_symptom(S) :-
-    observed_symptoms(List),
-    member(S, List).             % list membership
-
-% Count symptoms observed
-symptom_count(N) :-
-    observed_symptoms(List),
-    length(List, N).             % length of list
-
-% Module 3 - Inference Engine
-attack(brute_force) :-
-    has_symptom(many_failed_logins),
-    has_symptom(account_lockouts).
-
-attack(ddos) :-
-    has_symptom(high_network_traffic),
-    has_symptom(service_unavailable).
-
-attack(phishing) :-
-    has_symptom(suspicious_email),
-    has_symptom(fake_login_page).
-
-attack(ransomware) :-
-    has_symptom(encrypted_files),
-    has_symptom(disabled_antivirus).
-
-attack(insider_threat) :-
-    has_symptom(unknown_usb_detected),
-    \+ has_symptom(port_scanning_detected).  % negation as failure
-
-% Cut: once we confirm an attack, stop checking severity alternatives
-primary_attack(A) :-
-    attack(A), !.                            % cut
-
-% Module 4 - Dynamic DB
-:- dynamic session_log/1.
-
-log_event(Event) :-
-    assertz(session_log(Event)).         % assertz
-
-clear_session :-
-    retractall(observed_symptoms(_)),
-    assertz(observed_symptoms([])),
-    retractall(session_log(_)).          % retract all logs
-
-% Module 5 - Aggregation
-% Collect ALL possible attacks
-all_attacks(List) :-
-    bagof(X, attack(X), List).           % bagof
-
-% Sorted unique attacks
-sorted_attacks(Sorted) :-
-    setof(X, attack(X), Sorted).        % setof
-
-% Remove a known-safe threat from results
-filtered_attacks(Filtered) :-
-    all_attacks(List),
-    delete(List, insider_threat, Filtered).  % deleting in lists
-
-% Module 6 - Risk Scoring
-% Score = number of matching symptoms × average weight
-risk_score(Attack, Score) :-
-    observed_symptoms(List),
-    include(relevant_symptom(Attack), List, Relevant),
-    length(Relevant, N),                 % length
-    Score is N * 10.                     % arithmetic: is/2
-
-relevant_symptom(brute_force, many_failed_logins).
-relevant_symptom(brute_force, account_lockouts).
-relevant_symptom(ddos, high_network_traffic).
-relevant_symptom(ddos, service_unavailable).
-relevant_symptom(phishing, suspicious_email).
-relevant_symptom(phishing, fake_login_page).
-relevant_symptom(ransomware, encrypted_files).
-relevant_symptom(ransomware, disabled_antivirus).
-relevant_symptom(insider_threat, unknown_usb_detected).
-
-% Module 7 - Meta-Programming
-% Dynamically call any check predicate by name
-run_check(PredName, Arg) :-
-    Goal =.. [PredName, Arg],    % =.. (univ operator): build a term
-    call(Goal).                  % call/2
-
-% Inspect a term's functor and args
-describe_term(Term) :-
-    Term =.. [Functor | Args],
-    functor(Term, F, Arity),
-    format('Functor: ~w, Arity: ~w~n', [F, Arity]),
-    ( Args \= [] ->
-        arg(1, Term, First),
-        format('First arg: ~w~n', [First])
-    ; true ).
-
-% Repeatedly call a goal for a list of items
-check_all([]).
-check_all([H|T]) :-
-    run_check(has_symptom, H),   % repeatedly calling
-    check_all(T).
-
-% Module 8 - Interactive I/O
-% Collect symptoms interactively
-collect_symptoms :-
-    write('Enter symptom (or done. to finish): '), nl,
-    read(Input),                         % input
-    ( Input = done ->
+% Inspect structure using functor and arg
+inspect_event(EventTerm) :-
+    functor(EventTerm, Name, Arity),
+    format('Term Name: ~w, Arguments: ~w~n', [Name, Arity]),
+    ( Arity > 0 ->
+        arg(1, EventTerm, FirstArg),
+        format('Primary indicator: ~w~n', [FirstArg])
+    ;
         true
-    ;
-        add_symptom(Input),
-        write('Recorded: '), write(Input), nl,  % output
-        collect_symptoms               % recursive loop
     ).
 
-% Repeat-based alternative loop
-collect_loop :-
-    repeat,                              % repeat
-        write('Symptom (done. to stop): '), nl,
-        read(X),
-        ( X = done -> ! ; add_symptom(X), fail ).
+% Repeatedly calling a goal over a list
+process_all_alerts([]).
+process_all_alerts([H|T]) :-
+    format('Processing event: ~w~n', [H]),
+    inspect_event(event(H)), % dummy wrapper to show functor usage
+    process_all_alerts(T). % Repeatedly calling (recursion)
 
-% Module 9 - Final Report + Why Explanation
-% Full diagnosis report
+
+% --- Module 7: Interactive I/O (read, write, loops) ---
+% Main diagnosis interface
 diagnose :-
-    clear_session,
-    collect_symptoms,
-    nl, write('=== DIAGNOSIS REPORT ==='), nl,
-    ( setof(A, attack(A), Attacks) ->
-        report_all(Attacks)
+    write('========================================='), nl,
+    write(' CyberPro SOC Triage Expert System'), nl,
+    write('========================================='), nl,
+    clear_alerts,
+    collect_alerts,
+    nl, write('--- INITIATING SOC ANALYSIS ---'), nl,
+    get_all_alerts(RawList),
+    
+    % Demonstrate list deletion (Filtering false positive port scans)
+    filter_false_positives(RawList, FilteredList),
+    count_alerts(FilteredList, N),
+    format('Total actionable alerts to analyze: ~w~n', [N]),
+    
+    % Repeated call / Meta programming demo
+    process_all_alerts(FilteredList),
+    nl,
+    
+    % Arithmetic Risk Score
+    calculate_risk(FilteredList, Score),
+    format('>> Calculated Network Risk Score: ~w <<~n~n', [Score]),
+    
+    % Aggregation & Inference
+    unique_threats(Threats),
+    report_threats(Threats).
+
+% Recursive I/O loop
+collect_alerts :-
+    write('Enter security event (e.g., port_scan. or sql_injection_attempt.). Type done. to finish: '), nl,
+    read(Input),
+    ( Input = done ->
+        write('Data collection complete.'), nl
     ;
-        write('No matching threats detected.'), nl
+        ( is_valid_event(Input) ->
+            add_alert(Input)
+        ;
+            write('Unknown event. Recorded as generic anomaly.'), nl,
+            add_alert(Input)
+        ),
+        collect_alerts
     ).
 
-report_all([]).
-report_all([A|Rest]) :-
-    severity(A, Sev),
-    recommend(A, Rec),
-    risk_score(A, Score),
-    format('Threat   : ~w~n', [A]),
-    format('Severity : ~w~n', [Sev]),
-    format('Risk Score: ~w~n', [Score]),
-    format('Action   : ~w~n', [Rec]), nl,
-    why(A), nl,
-    report_all(Rest).
-
-% WHY predicate — explains reasoning
-why(Attack) :-
-    attack(Attack),
-    format('~w detected because: ~n', [Attack]),
-    observed_symptoms(List),
-    include(is_evidence_for(Attack), List, Evidence),
-    print_list(Evidence).
-
-is_evidence_for(Attack, Symptom) :-
-    relevant_symptom(Attack, Symptom).
-
-print_list([]).
-print_list([H|T]) :-
-    format('  - ~w~n', [H]),
-    print_list(T).
+% Reporting loop
+report_threats([]) :-
+    write('No critical threats detected based on actionable alerts.'), nl.
+report_threats([T|Rest]) :-
+    threat(T, Level),
+    mitigation(T, Mit),
+    write('! THREAT DETECTED !'), nl,
+    format('Type: ~w~n', [T]),
+    format('Severity: ~w~n', [Level]),
+    format('Action Required: ~w~n~n', [Mit]),
+    report_threats(Rest).
