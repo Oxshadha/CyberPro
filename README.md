@@ -25,6 +25,14 @@ CyberPro can successfully diagnose and provide mitigation strategies for:
 8. Cloud Data Exfiltration
 9. Website Defacement
 
+## Prolog Concepts Demonstrated
+
+* `bagof/3` collects all ordered action-summary/detail records for the diagnosed threat.
+* `setof/3` derives a sorted list of unique evidence domains involved in the assessment.
+* `call/1` executes a dynamically constructed `bagof/3` or `setof/3` goal through the reusable `collect_knowledge/4` predicate.
+* `repeat/0` validates yes/no input in the standalone `console_diagnose/1` consultation mode.
+* Lists, recursion, `member/2`, arithmetic, cuts, `assertz/1`, and `retractall/1` support the main inference workflow.
+
 ## 🛠 Setup and Installation
 
 ### Prerequisites

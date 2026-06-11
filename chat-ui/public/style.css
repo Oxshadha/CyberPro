@@ -265,6 +265,17 @@ h2 {
     margin-bottom: 14px;
 }
 
+.evidence-domains {
+    color: #9ca3af;
+    font-size: 0.82rem;
+    margin: -6px 0 14px !important;
+    text-transform: capitalize;
+}
+
+.evidence-domains strong {
+    color: #d1d5db;
+}
+
 .metric-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));

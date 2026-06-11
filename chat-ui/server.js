@@ -75,6 +75,7 @@ function parseOutput(output) {
     const result = {
         actions: [],
         actionDetails: {},
+        categories: [],
         trace: []
     };
 
@@ -91,6 +92,8 @@ function parseOutput(output) {
         } else if (key === 'ACTION_DETAIL') {
             const [number, text] = value.split('|');
             result.actionDetails[Number(number)] = text;
+        } else if (key === 'CATEGORY') {
+            result.categories.push(value);
         } else if (key === 'TRACE') {
             const [symptom, answer, weight] = value.split('|');
             result.trace.push({ symptom, answer, weight: Number(weight) });
@@ -108,6 +111,10 @@ function formatName(value) {
 
 function formatEvidence(value) {
     return value.replace(/_/g, ' ');
+}
+
+function formatCategories(categories) {
+    return categories.map(formatEvidence).join(', ');
 }
 
 function escapeHtml(value) {
@@ -168,6 +175,7 @@ function buildFoundReply(data) {
 <div class="diagnosis-kicker"><i data-lucide="shield-alert"></i> Expert system assessment</div>
 <h2><span>${formatName(data.threat)}</span></h2>
 <p class="diagnosis-summary">${escapeHtml(data.explanation)}</p>
+<p class="evidence-domains"><strong>Evidence domains:</strong> ${escapeHtml(formatCategories(data.categories))}</p>
 
 <div class="metric-grid">
   <div class="metric-card success"><small>Indicators</small><strong>${data.confirmed}/${data.total}</strong></div>
@@ -206,6 +214,7 @@ function buildInsufficientReply(data) {
 <div class="diagnosis-kicker"><i data-lucide="circle-help"></i> Evidence threshold not reached</div>
 <h2><span>INSUFFICIENT EVIDENCE: ${formatName(data.threat)}</span></h2>
 <p class="diagnosis-summary">The consultation completed, but the confirmed evidence did not reach the 60% threshold required for an evidence-supported assessment.</p>
+<p class="evidence-domains"><strong>Evidence domains:</strong> ${escapeHtml(formatCategories(data.categories))}</p>
 
 <div class="metric-grid">
   <div class="metric-card warning"><small>Indicators</small><strong>${data.confirmed}/${data.total}</strong></div>

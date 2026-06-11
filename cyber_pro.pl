@@ -116,6 +116,45 @@ question(admin_login_bypass, 'Are there suspicious successful logins to the CMS 
 question(unknown_files_on_web_server, 'Were unknown scripts, pages, or backdoor files added to the web server?').
 question(cms_files_modified, 'Do file-integrity logs show unauthorized changes to CMS or website files?').
 
+% Evidence domains allow the system to explain which technical areas
+% contributed to an assessment.
+indicator_category(service_unavailable, service).
+indicator_category(high_network_traffic, network).
+indicator_category(many_source_ips, network).
+indicator_category(traffic_recovers_when_filtered, network).
+indicator_category(database_errors, database).
+indicator_category(sql_patterns_in_requests, application).
+indicator_category(unauthorized_access, access_control).
+indicator_category(unexpected_database_changes, database).
+indicator_category(files_encrypted, file_system).
+indicator_category(ransom_note, endpoint).
+indicator_category(unusual_file_extensions, file_system).
+indicator_category(rapid_file_modification, file_system).
+indicator_category(unusual_login_times, identity).
+indicator_category(data_exfiltration, network).
+indicator_category(unusual_sensitive_file_access, data_access).
+indicator_category(use_of_personal_storage, data_transfer).
+indicator_category(port_scan, network).
+indicator_category(multiple_failed_logins, identity).
+indicator_category(many_ports_targeted, network).
+indicator_category(repeated_requests_from_same_source, network).
+indicator_category(suspicious_emails_reported, email).
+indicator_category(malicious_attachments_downloaded, endpoint).
+indicator_category(lookalike_sender_domains, email).
+indicator_category(credentials_entered_after_email, identity).
+indicator_category(high_cpu_usage, endpoint).
+indicator_category(unusual_outbound_connections, network).
+indicator_category(unknown_mining_process, process).
+indicator_category(cpu_high_when_idle, endpoint).
+indicator_category(spike_outbound_traffic, network).
+indicator_category(traffic_to_external_cloud, cloud).
+indicator_category(compromised_cloud_credentials, identity).
+indicator_category(unusual_bulk_downloads, cloud).
+indicator_category(homepage_changed, website).
+indicator_category(admin_login_bypass, identity).
+indicator_category(unknown_files_on_web_server, file_system).
+indicator_category(cms_files_modified, website).
+
 explanation(ddos, 'The confirmed evidence indicates traffic-based service disruption consistent with a distributed denial-of-service attack.').
 explanation(sql_injection, 'The confirmed database and request evidence indicates that crafted SQL input may have reached the application database.').
 explanation(ransomware, 'The confirmed file-system evidence indicates automated encryption activity consistent with ransomware.').
@@ -249,13 +288,50 @@ diagnosis_status(Confidence, Confirmed, found) :-
     Confirmed >= 3, !.
 diagnosis_status(_, _, insufficient).
 
+% Build and execute bagof/3 or setof/3 dynamically.
+% This makes one reusable collector for different knowledge queries.
+collect_knowledge(Collector, Template, Goal, Results) :-
+    CollectionGoal =.. [Collector, Template, Goal, Results],
+    call(CollectionGoal).
+
+ordered_actions(Threat, Actions) :-
+    collect_knowledge(
+        bagof,
+        Number-Text-Detail,
+        (action(Threat, Number, Text), action_detail(Threat, Number, Detail)),
+        Actions
+    ).
+
+profile_category(Indicators, Category) :-
+    member(indicator(Symptom, _), Indicators),
+    indicator_category(Symptom, Category).
+
+evidence_categories(Indicators, Categories) :-
+    collect_knowledge(
+        setof,
+        Category,
+        profile_category(Indicators, Category),
+        Categories
+    ).
+
 print_actions(Threat) :-
-    action(Threat, Number, Text),
+    ordered_actions(Threat, Actions),
+    print_action_list(Actions).
+
+print_action_list([]).
+print_action_list([Number-Text-Detail|Rest]) :-
     format('ACTION=~w|~w~n', [Number, Text]),
-    action_detail(Threat, Number, Detail),
     format('ACTION_DETAIL=~w|~w~n', [Number, Detail]),
-    fail.
-print_actions(_).
+    print_action_list(Rest).
+
+print_categories(Indicators) :-
+    evidence_categories(Indicators, Categories),
+    print_category_list(Categories).
+
+print_category_list([]).
+print_category_list([Category|Rest]) :-
+    format('CATEGORY=~w~n', [Category]),
+    print_category_list(Rest).
 
 print_trace([]).
 print_trace([indicator(Symptom, Weight)|Rest]) :-
@@ -277,6 +353,7 @@ print_result(Threat, Impact, Indicators) :-
     format('CONFIRMED=~w~n', [Confirmed]),
     format('TOTAL=~w~n', [Total]),
     format('EXPLANATION=~w~n', [Explanation]),
+    print_categories(Indicators),
     print_actions(Threat),
     format('AVOID=~w~n', [Avoid]),
     print_trace(Indicators).
@@ -306,3 +383,32 @@ reset_session :-
 assert_fact(YesNo, Symptom) :-
     retractall(known(_, Symptom)),
     assertz(known(YesNo, Symptom)).
+
+% Standalone console mode for demonstrating the expert system in SWI-Prolog.
+% repeat/0 keeps asking until the user enters yes or no.
+console_diagnose(Selected) :-
+    reset_session,
+    resolve_threat(Selected, Threat),
+    threat_profile(Threat, Impact, Indicators),
+    console_consult(Indicators),
+    print_result(Threat, Impact, Indicators).
+
+console_consult([]).
+console_consult([indicator(Symptom, _)|Rest]) :-
+    question(Symptom, Text),
+    format('~w (yes/no): ', [Text]),
+    read_yes_no(Answer),
+    assert_fact(Answer, Symptom),
+    console_consult(Rest).
+
+read_yes_no(Answer) :-
+    repeat,
+    read(Input),
+    (
+        member(Input, [yes, no])
+    ->
+        Answer = Input, !
+    ;
+        writeln('Please enter yes. or no.'),
+        fail
+    ).

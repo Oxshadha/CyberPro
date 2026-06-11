@@ -75,4 +75,39 @@ test(trace_contains_actual_answers) :-
     once(sub_string(Output, _, _, _, 'TRACE=database_errors|yes|25')),
     once(sub_string(Output, _, _, _, 'TRACE=sql_patterns_in_requests|no|30')).
 
+test(bagof_collects_ordered_actions) :-
+    ordered_actions(sql_injection, Actions),
+    Actions = [
+        1-_-_,
+        2-_-_,
+        3-_-_
+    ].
+
+test(setof_collects_unique_categories) :-
+    threat_profile(sql_injection, _, Indicators),
+    evidence_categories(Indicators, Categories),
+    assertion(Categories == [access_control, application, database]).
+
+test(call_executes_dynamic_collector) :-
+    collect_knowledge(
+        setof,
+        Category,
+        member(Category, [network, identity, network]),
+        Categories
+    ),
+    assertion(Categories == [identity, network]).
+
+test(repeat_validates_console_input) :-
+    open_string("invalid.\nyes.\n", Input),
+    current_input(OriginalInput),
+    setup_call_cleanup(
+        set_input(Input),
+        read_yes_no(Answer),
+        (
+            set_input(OriginalInput),
+            close(Input)
+        )
+    ),
+    assertion(Answer == yes).
+
 :- end_tests(cyber_pro).
