@@ -80,8 +80,8 @@ print_actions(Threat) :-
 
 print_action_list([]).
 print_action_list([Number-Text-Detail|Rest]) :-
-    format('ACTION=~w|~w~n', [Number, Text]),
-    format('ACTION_DETAIL=~w|~w~n', [Number, Detail]),
+    write('ACTION='), write(Number), write('|'), write(Text), nl,
+    write('ACTION_DETAIL='), write(Number), write('|'), write(Detail), nl,
     print_action_list(Rest).
 
 print_categories(Indicators) :-
@@ -90,13 +90,13 @@ print_categories(Indicators) :-
 
 print_category_list([]).
 print_category_list([Category|Rest]) :-
-    format('CATEGORY=~w~n', [Category]),
+    write('CATEGORY='), write(Category), nl,
     print_category_list(Rest).
 
 print_trace([]).
 print_trace([indicator(Symptom, Weight)|Rest]) :-
     known(Answer, Symptom),
-    format('TRACE=~w|~w|~w~n', [Symptom, Answer, Weight]),
+    write('TRACE='), write(Symptom), write('|'), write(Answer), write('|'), write(Weight), nl,
     print_trace(Rest).
 
 print_result(Threat, Impact, Indicators) :-
@@ -104,18 +104,18 @@ print_result(Threat, Impact, Indicators) :-
     diagnosis_status(Confidence, Confirmed, Status),
     explanation(Threat, Explanation),
     avoid(Threat, Avoid),
-    format('RESULT=~w~n', [Status]),
-    format('TARGET=~w~n', [Threat]),
-    format('THREAT=~w~n', [Threat]),
-    format('CONFIDENCE=~w~n', [Confidence]),
-    format('RISK=~w~n', [Risk]),
-    format('IMPACT=~w~n', [Impact]),
-    format('CONFIRMED=~w~n', [Confirmed]),
-    format('TOTAL=~w~n', [Total]),
-    format('EXPLANATION=~w~n', [Explanation]),
+    write('RESULT='), write(Status), nl,
+    write('TARGET='), write(Threat), nl,
+    write('THREAT='), write(Threat), nl,
+    write('CONFIDENCE='), write(Confidence), nl,
+    write('RISK='), write(Risk), nl,
+    write('IMPACT='), write(Impact), nl,
+    write('CONFIRMED='), write(Confirmed), nl,
+    write('TOTAL='), write(Total), nl,
+    write('EXPLANATION='), write(Explanation), nl,
     print_categories(Indicators),
     print_actions(Threat),
-    format('AVOID=~w~n', [Avoid]),
+    write('AVOID='), write(Avoid), nl,
     print_trace(Indicators).
 
 api_diagnose(Selected) :-
@@ -128,14 +128,14 @@ api_diagnose(Selected) :-
         ),
         ask_user(Symptom, Text),
         (
-            format('RESULT=ask~n'),
-            format('TARGET=~w~n', [Threat]),
-            format('SYMPTOM=~w~n', [Symptom]),
-            format('QUESTION=~w~n', [Text])
+            write('RESULT=ask'), nl,
+            write('TARGET='), write(Threat), nl,
+            write('SYMPTOM='), write(Symptom), nl,
+            write('QUESTION='), write(Text), nl
         )
     ), !.
 api_diagnose(_) :-
-    format('RESULT=invalid~n').
+    write('RESULT=invalid'), nl.
 
 reset_session :-
     retractall(known(_, _)).
@@ -156,7 +156,7 @@ console_diagnose(Selected) :-
 console_consult([]).
 console_consult([indicator(Symptom, _)|Rest]) :-
     question(Symptom, Text),
-    format('~w (yes/no): ', [Text]),
+    write(Text), write(' (yes/no): '),
     read_yes_no(Answer),
     assert_fact(Answer, Symptom),
     console_consult(Rest).
